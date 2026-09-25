@@ -27,7 +27,7 @@
 
 ## 技术栈
 
-Tauri 2 + Vue 3 + TypeScript + Pinia。业务逻辑全部在前端 TS，Rust 仅承担日志读取、目录探测与 HTTP；NSIS 安装包目标 ≤ 15MB。
+Tauri 2 + Vue 3 + TypeScript + Pinia。业务逻辑全部在前端 TS，Rust 仅承担日志读取、目录探测与 HTTP；分发为便携版 zip（解压即用、无需安装），目标 ≤ 15MB。
 
 ## 文档导航
 
@@ -37,7 +37,7 @@ Tauri 2 + Vue 3 + TypeScript + Pinia。业务逻辑全部在前端 TS，Rust 仅
 | [docs/prototype/index.html](docs/prototype/index.html) | 交互定稿原型（浏览器直接打开） |
 | [docs/design/DESIGN-SYSTEM.md](docs/design/DESIGN-SYSTEM.md) | 视觉规范 v11 终稿 |
 | [CONTEXT.md](CONTEXT.md) | 领域术语表 |
-| [docs/adr/](docs/adr/) | 架构决策记录 ADR-0001 ~ 0007 |
+| [docs/adr/](docs/adr/) | 架构决策记录 ADR-0001 ~ 0008 |
 | [docs/research-2026-09-25-gacha-api.md](docs/research-2026-09-25-gacha-api.md) | 官方接口技术调研（含来源） |
 | [.scratch/v1-huanqu-archive/spec.md](.scratch/v1-huanqu-archive/spec.md) | V1 正式 Spec |
 

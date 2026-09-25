@@ -5,7 +5,7 @@
 | 版本 | V1.0 定稿（原「默认假设」已于 2026-09-26 固化为 §9 决策；正式 Spec 见 [.scratch/v1-huanqu-archive/spec.md](../.scratch/v1-huanqu-archive/spec.md)） |
 | 日期 | 2026-09-26 |
 | 平台 | Windows 10/11 x64 桌面应用 |
-| 关联文档 | [CONTEXT.md](../CONTEXT.md)（术语表）、[设计系统](./design/DESIGN-SYSTEM.md)（v11 终稿）、[交互定稿原型](./prototype/index.html)、[ADR-0001 桌面壳](./adr/0001-tauri-2-desktop-shell.md)、[ADR-0002 歪判定](./adr/0002-standard-roster-off-banner-detection.md)、[ADR-0003 信息架构](./adr/0003-single-canvas-chronicle-ia.md)、[ADR-0004 视觉母语](./adr/0004-game-native-visual-language.md)、[ADR-0005 头像资产](./adr/0005-avatar-asset-source.md)、[ADR-0006 配色定稿](./adr/0006-final-palette.md)、[ADR-0007 名册网格](./adr/0007-chronicle-roster-grid.md)、[技术调研汇报](./research-2026-09-25-gacha-api.md) |
+| 关联文档 | [CONTEXT.md](../CONTEXT.md)（术语表）、[设计系统](./design/DESIGN-SYSTEM.md)（v11 终稿）、[交互定稿原型](./prototype/index.html)、[ADR-0001 桌面壳](./adr/0001-tauri-2-desktop-shell.md)、[ADR-0002 歪判定](./adr/0002-standard-roster-off-banner-detection.md)、[ADR-0003 信息架构](./adr/0003-single-canvas-chronicle-ia.md)、[ADR-0004 视觉母语](./adr/0004-game-native-visual-language.md)、[ADR-0005 头像资产](./adr/0005-avatar-asset-source.md)、[ADR-0006 配色定稿](./adr/0006-final-palette.md)、[ADR-0007 名册网格](./adr/0007-chronicle-roster-grid.md)、[ADR-0008 便携分发](./adr/0008-portable-zip-only.md)、[技术调研汇报](./research-2026-09-25-gacha-api.md) |
 
 > 术语一律以 [CONTEXT.md](../CONTEXT.md) 为准：官方用语是「**唤取**」「**调谐**」，本文除引用旧说法外统一使用官方词。
 
@@ -28,7 +28,7 @@
 | G1 | 一键获取：玩家只要在游戏内打开过唤取记录页，无需看教程即可导入 | 全新 Windows 11 机器上，国服 + 国际服各实测一次一键获取成功 |
 | G2 | 欧非一屏叙事：打开即见评语、五星编年史与保底倒计时 | 主画面首屏承载评语行、五星编年史名册与保底引线 |
 | G3 | 隐私零上传：统计与存储全部本地 | 除官方 API 域名白名单外无任何网络请求（抓包验证） |
-| G4 | 轻量：在意包体积 | NSIS 安装包 ≤ 15MB |
+| G4 | 轻量：在意包体积 | 便携版 zip ≤ 15MB，解压即可运行 |
 | G5 | 数据不丢：官方 6 个月窗口之外的历史仍可用 | 本地合并去重后记录只增不减，支持 JSON 备份/恢复 |
 
 **V1 定位**：单机单人使用的「先做出来看看」版本，跑通「获取 → 存储 → 统计 → 展示」完整闭环。
@@ -169,7 +169,7 @@
 - **隐私**：所有统计本地完成；网络请求仅限官方 API 域名白名单（`gmserver-api.aki-game2.com/.net`）；无埋点、无崩溃上报、无自动更新检查（V1）。
 - **无登录**：应用无账号体系，「档案」即一个 UID 的本地数据槽。
 - **平台**：Windows 10/11 x64；开发在 macOS（Tauri dev），发布构建在 Windows 机 `tauri build`。
-- **体积**：NSIS 安装包 ≤ 15MB（Tauri 2 预期 ~10MB）。
+- **体积**：便携版 zip ≤ 15MB（Tauri 2 预期 ~10MB），解压即用、无需安装。
 - **性能**：1 万条记录下，页签切换 < 200ms、指标计算 < 500ms；2 万条记录流水虚拟滚动流畅。
 - **健壮性**：写库事务化，崩溃不丢不脏；断网时除获取外全部功能可用。
 - **可用性**：暗/明主题均满足对比度要求；简体中文。
@@ -190,7 +190,7 @@
 | A1 | 前端 Vue 3 + TypeScript + Pinia，无图表库（原假设中的 ECharts 因编年史定稿为名册卡片网格而移除，见 ADR-0007） | 原型定稿 |
 | A2 | 界面仅简体中文 | V1 范围 |
 | A3 | 启动时自动增量同步（仅当缓存的唤取链接仍有效），设置内可关 | 原型设置弹窗（开关默认开） |
-| A4 | 发布 NSIS 安装包 + 便携版 zip 双形态，V1 无自动更新 | 发布策略 |
+| A4 | 仅发布便携版 zip（解压即用，不做安装包，见 ADR-0008）；档案数据存 Windows 用户数据目录、与程序目录分离；V1 无自动更新 | 2026-09-26 用户决策，替代原「NSIS + 便携双形态」 |
 | A5 | 深度统计范围：角色系限定 1/8/10/12、武器系限定 2/9/11/13、常驻 3/4；新手/感恩 5/6/7 及未知池浅统计 | 调研 §4 |
 | A6 | 切换档案后旧档案只读保留在本地（V1 不提供浏览旧档案的 UI） | CONTEXT.md「切换档案」 |
 | A7 | 期望参考线：角色系 62 抽；武器系 V1 暂不显示 | 原型 + 社区口径 |
@@ -202,11 +202,11 @@
 |---|---|---|
 | M1 数据链路 | 目录探测 → 日志读取/解码 → URL 解析 → 拉取（限速/重试）→ SQLite 落库合并 | 真实国服账号完整拉取并二次增量无重复；可用简易调试页验证 |
 | M2 统计与界面 | 编年史主画面（五星编年史名册 / 高光时刻 / 保底引线）、记录抽屉、设置弹窗、明暗主题 | 口径经手工样本核对；1 万条性能达标 |
-| M3 评价与发布 | 欧非评语、备份/导入、打包（NSIS + 便携版） | G1–G5 全部通过 |
+| M3 评价与发布 | 欧非评语、备份/导入、打包（便携版 zip） | G1–G5 全部通过 |
 
 ## 11. V1 整体验收（DoD）
 
-1. 全新 Windows 10 与 Windows 11 机器各安装一次：安装包 ≤ 15MB，安装无报警；
+1. 全新 Windows 10 与 Windows 11 机器各验证一次：便携版 zip ≤ 15MB，解压到任意目录后无需安装直接运行；
 2. 国服 + 国际服真实账号各完成一键获取并核对计数；
 3. 链接过期场景出现正确的引导文案；
 4. 抓包验证仅官方域名请求；断网下统计/浏览/备份正常；
