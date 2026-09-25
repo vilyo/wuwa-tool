@@ -1,0 +1,13 @@
+# macOS
+.DS_Store
+
+# Node / 前端
+node_modules/
+dist/
+
+# Tauri / Rust
+src-tauri/target/
+
+# 本地环境与日志
+*.local
+*.log
