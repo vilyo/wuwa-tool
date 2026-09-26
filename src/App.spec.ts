@@ -11,6 +11,11 @@ vi.mock('@tauri-apps/api/window', () => ({
   }),
 }))
 
+// jsdom 无 Tauri 运行时:启动加载档案的 invoke 一律返回空档案列表
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: vi.fn(async () => []),
+}))
+
 function mountApp() {
   return mount(App, { global: { plugins: [createPinia()] } })
 }

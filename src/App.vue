@@ -1,13 +1,26 @@
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import AppStatusBar from '@/components/AppStatusBar.vue'
 import AppTitleBar from '@/components/AppTitleBar.vue'
+import PasteImport from '@/components/PasteImport.vue'
+import RecordList from '@/components/RecordList.vue'
+import { useRecordsStore } from '@/stores/records'
+
+const recordsStore = useRecordsStore()
+
+// 启动时恢复最近档案(重启后数据完整可读)
+onMounted(() => {
+  void recordsStore.init()
+})
 </script>
 
 <template>
   <div class="app">
     <AppTitleBar />
     <main class="main-area">
+      <PasteImport />
       <section
+        v-if="recordsStore.records.length === 0"
         class="empty-state"
         aria-label="唤取档案空态"
       >
@@ -22,6 +35,10 @@ import AppTitleBar from '@/components/AppTitleBar.vue'
           在游戏内打开一次「唤取记录」页,然后点击顶栏「一键同步」,即可导入你的唤取记录。
         </p>
       </section>
+      <RecordList
+        v-else
+        :records="recordsStore.records"
+      />
     </main>
     <AppStatusBar />
   </div>
@@ -38,12 +55,15 @@ import AppTitleBar from '@/components/AppTitleBar.vue'
 .main-area {
   flex: 1;
   min-height: 0;
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
   padding: 24px;
+  overflow-y: auto;
 }
 
 .empty-state {
+  margin: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
