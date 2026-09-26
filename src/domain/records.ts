@@ -10,6 +10,13 @@ export interface GachaRecord {
   qualityLevel: number
   resourceId: string
   resourceType: string
+  /** 同秒多抽合并条数(官方 count):一条 = count 抽,禁止展开成多行(#15);≥1,缺省 1,不入去重键 */
+  count: number
+}
+
+/** count 归一化:官方/备份的 count 缺失或非法(非正整数)一律按 1;>1 保留原值 */
+export function normalizeCount(value: unknown): number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1 ? value : 1
 }
 
 /** 官方返回体中的单条记录;中文池名等字段仅透传展示,不参与任何匹配(research §2.3) */
@@ -31,29 +38,52 @@ export function recordKey(record: GachaRecord): string {
 export interface MergeResult {
   /** 合并后的全量记录(既有在前、新增追加其后),不改写入参 */
   records: GachaRecord[]
-  /** 本次真正新增的部分 */
+  /** 本次真正新增的部分(同键多抽已聚合为一条,count=该键抽数) */
   added: GachaRecord[]
+  /** 同键相遇且新到抽数更多而升级的既有记录(升级后口径,#15;供存储层按键升级 count) */
+  updated: GachaRecord[]
 }
 
-/** 合并去重:按组合键只增不减(D2);与 DB 层 INSERT OR IGNORE 语义一致 */
+/** 合并去重:按组合键只增不减(D2),同键抽数取 max(既有, 新到)(#15 延续只增不减);
+ *  与 DB 层 INSERT OR IGNORE / count 单调升级语义一致 */
 export function mergeRecords(
   existing: readonly GachaRecord[],
   incoming: readonly GachaRecord[],
 ): MergeResult {
-  const seen = new Set(existing.map(recordKey))
+  const indexByKey = new Map(existing.map((record, index) => [recordKey(record), index]))
   const records = [...existing]
   const added: GachaRecord[] = []
+  const updated: GachaRecord[] = []
+  // 官方逐抽返回:同一次唤取里抽到的同名同星物品是同键多行(count 恒 1),
+  // 先按键聚合 Σcount 再合并——同键 N 行 = N 抽,聚合为一条 count=N 的记录(#15)
+  const grouped = new Map<string, { record: GachaRecord; pulls: number }>()
   for (const item of incoming) {
     const key = recordKey(item)
-    if (seen.has(key)) continue
-    seen.add(key)
-    records.push(item)
-    added.push(item)
+    const group = grouped.get(key)
+    if (group) group.pulls += item.count
+    else grouped.set(key, { record: item, pulls: item.count })
   }
-  return { records, added }
+  for (const [key, { record, pulls }] of grouped) {
+    const index = indexByKey.get(key)
+    if (index === undefined) {
+      indexByKey.set(key, records.length)
+      const aggregated = { ...record, count: pulls }
+      records.push(aggregated)
+      added.push(aggregated)
+      continue
+    }
+    const current = records[index]!
+    if (pulls > current.count) {
+      const upgraded = { ...current, count: pulls }
+      records[index] = upgraded
+      updated.push(upgraded)
+    }
+  }
+  return { records, added, updated }
 }
 
-/** 官方单池返回 → 领域记录;池 code 与 cardPoolId 取自本池请求上下文,与返回内容无关 */
+/** 官方单池返回 → 领域记录;池 code 与 cardPoolId 取自本池请求上下文,与返回内容无关。
+ *  count 保留官方值(同秒多抽合一条),缺失/非法按 1,禁止展开成多行(#15) */
 export function toDomainRecords(
   items: readonly RawApiItem[],
   poolCode: number,
@@ -67,5 +97,6 @@ export function toDomainRecords(
     qualityLevel: item.qualityLevel ?? 0,
     resourceId: item.resourceId === undefined || item.resourceId === null ? '' : String(item.resourceId),
     resourceType: item.resourceType ?? '',
+    count: normalizeCount(item.count),
   }))
 }

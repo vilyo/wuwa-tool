@@ -1,5 +1,6 @@
 //! 本地 SQLite 档案存储(D2):表 `pull_records`,唯一索引即去重键,只增不删。
-//! 业务合并去重在前端 domain/merge 完成,`INSERT OR IGNORE` 是第二道幂等保险。
+//! 业务合并去重在前端 domain/merge 完成,`INSERT OR IGNORE` 是第二道幂等保险;
+//! count 升级(#15 同键取较大值)经 `update_record_counts` 单调 UPDATE。
 
 use std::time::Duration;
 
@@ -21,7 +22,8 @@ CREATE TABLE IF NOT EXISTS pull_records (
     name           TEXT NOT NULL,
     quality_level  INTEGER NOT NULL,
     resource_id    TEXT,
-    resource_type  TEXT
+    resource_type  TEXT,
+    \"count\"         INTEGER NOT NULL DEFAULT 1
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_pull_records_dedupe
     ON pull_records (player_id, time, name, quality_level, card_pool_type);
@@ -29,6 +31,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_pull_records_dedupe
 
 /// 单条唤取记录:JSON 字段名与官方 API 返回对齐(D2)。
 /// `card_pool_type` 是数字池 code(取本池请求时的 code,与返回体中文池名无关)。
+/// `count` = 同秒多抽合并条数(#15),一条 = count 抽;缺省按 1(旧数据/旧备份兼容)。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PullRecord {
@@ -42,6 +45,12 @@ pub struct PullRecord {
     pub resource_id: String,
     #[serde(default)]
     pub resource_type: String,
+    #[serde(default = "default_count")]
+    pub count: i64,
+}
+
+fn default_count() -> i64 {
+    1
 }
 
 /// 档案摘要(一个 UID 一份档案)
@@ -55,10 +64,33 @@ pub struct ArchiveSummary {
 }
 
 pub fn init_schema(conn: &Connection) -> rusqlite::Result<()> {
-    conn.execute_batch(SCHEMA_SQL)
+    conn.execute_batch(SCHEMA_SQL)?;
+    migrate_add_count_column(conn)
 }
 
-/// 单事务批量 INSERT OR IGNORE(D2:崩溃不留半写);返回实际新增行数
+/// 既有库无损迁移(#15):补 count 列,旧行按默认 1;CREATE TABLE IF NOT EXISTS
+/// 不会改既有表,故按列存在性判断后 ALTER(SQLite ≥3.16 支持 pragma_table_info)。
+/// 「查列-改表」非原子:极端并发下另一连接可能恰好完成迁移,重复加列按幂等容忍
+fn migrate_add_count_column(conn: &Connection) -> rusqlite::Result<()> {
+    let has_count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM pragma_table_info('pull_records') WHERE name = 'count'",
+        [],
+        |row| row.get(0),
+    )?;
+    if has_count == 0 {
+        if let Err(err) = conn.execute_batch(
+            "ALTER TABLE pull_records ADD COLUMN \"count\" INTEGER NOT NULL DEFAULT 1;",
+        ) {
+            if !err.to_string().contains("duplicate column") {
+                return Err(err);
+            }
+        }
+    }
+    Ok(())
+}
+
+/// 单事务批量 INSERT OR IGNORE(D2:崩溃不留半写);返回实际新增行数。
+/// count 入库前钳为 ≥1,防止非法数据混入(前端已归一化,此处兜底)
 pub fn insert_records(
     conn: &Connection,
     player_id: &str,
@@ -69,8 +101,8 @@ pub fn insert_records(
     {
         let mut stmt = tx.prepare(
             "INSERT OR IGNORE INTO pull_records
-             (player_id, card_pool_type, card_pool_id, time, name, quality_level, resource_id, resource_type)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+             (player_id, card_pool_type, card_pool_id, time, name, quality_level, resource_id, resource_type, \"count\")
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
         )?;
         for record in records {
             inserted += stmt.execute(params![
@@ -82,6 +114,7 @@ pub fn insert_records(
                 record.quality_level,
                 record.resource_id,
                 record.resource_type,
+                record.count.max(1),
             ])?;
         }
     }
@@ -89,9 +122,39 @@ pub fn insert_records(
     Ok(inserted)
 }
 
+/// 单事务按去重键升级 count(只增不减:新值 ≤ 既有为无操作,#15);返回实际升级行数。
+/// 与 INSERT OR IGNORE 同为幂等保险:merge 层已取 max,此处 WHERE count < ? 再兜一层
+pub fn update_record_counts(
+    conn: &Connection,
+    player_id: &str,
+    records: &[PullRecord],
+) -> rusqlite::Result<usize> {
+    let tx = conn.unchecked_transaction()?;
+    let mut updated = 0;
+    {
+        let mut stmt = tx.prepare(
+            "UPDATE pull_records SET \"count\" = ?1
+             WHERE player_id = ?2 AND time = ?3 AND name = ?4
+               AND quality_level = ?5 AND card_pool_type = ?6 AND \"count\" < ?1",
+        )?;
+        for record in records {
+            updated += stmt.execute(params![
+                record.count.max(1),
+                player_id,
+                record.time,
+                record.name,
+                record.quality_level,
+                record.card_pool_type,
+            ])?;
+        }
+    }
+    tx.commit()?;
+    Ok(updated)
+}
+
 pub fn load_records(conn: &Connection, player_id: &str) -> rusqlite::Result<Vec<PullRecord>> {
     let mut stmt = conn.prepare(
-        "SELECT card_pool_type, card_pool_id, time, name, quality_level, resource_id, resource_type
+        "SELECT card_pool_type, card_pool_id, time, name, quality_level, resource_id, resource_type, \"count\"
          FROM pull_records
          WHERE player_id = ?1
          ORDER BY time DESC, rowid DESC",
@@ -105,6 +168,7 @@ pub fn load_records(conn: &Connection, player_id: &str) -> rusqlite::Result<Vec<
             quality_level: row.get(4)?,
             resource_id: row.get::<_, Option<String>>(5)?.unwrap_or_default(),
             resource_type: row.get::<_, Option<String>>(6)?.unwrap_or_default(),
+            count: row.get(7)?,
         })
     })?;
     rows.collect()
@@ -189,6 +253,18 @@ pub fn db_insert_records(
     insert_records(&conn, &player_id, &records).map_err(|e| format!("写入唤取记录失败:{e}"))
 }
 
+/// 按去重键升级既有记录 count(单事务、只增不减),返回实际升级行数(#15)
+#[tauri::command(async)]
+pub fn db_update_record_counts(
+    app: AppHandle,
+    player_id: String,
+    records: Vec<PullRecord>,
+) -> Result<usize, String> {
+    let conn = open_db(&app)?;
+    update_record_counts(&conn, &player_id, &records)
+        .map_err(|e| format!("升级唤取记录抽数失败:{e}"))
+}
+
 /// 读取指定 UID 的全部唤取记录(时间倒序)
 #[tauri::command(async)]
 pub fn db_load_records(app: AppHandle, player_id: String) -> Result<Vec<PullRecord>, String> {
@@ -241,6 +317,7 @@ mod tests {
             quality_level: 5,
             resource_id: "21010043".into(),
             resource_type: "角色".into(),
+            count: 1,
         }
     }
 
@@ -257,6 +334,96 @@ mod tests {
         assert_eq!(insert_records(&conn, "106485288", &records).unwrap(), 0);
         let loaded = load_records(&conn, "106485288").unwrap();
         assert_eq!(loaded.len(), 2);
+    }
+
+    #[test]
+    fn count_roundtrips_through_insert_and_load() {
+        let conn = memory_db();
+        let mut merged = record("2025-05-01 10:00:00", "湮灭杖", 2);
+        merged.quality_level = 3;
+        merged.count = 4; // 同秒多抽合并:一条 = 4 抽
+        insert_records(&conn, "106485288", &[merged]).unwrap();
+
+        let loaded = load_records(&conn, "106485288").unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].count, 4);
+    }
+
+    #[test]
+    fn insert_clamps_non_positive_count_to_one() {
+        let conn = memory_db();
+        let mut bad = record("2025-05-01 10:00:00", "长离", 1);
+        bad.count = 0;
+        insert_records(&conn, "106485288", &[bad]).unwrap();
+        assert_eq!(load_records(&conn, "106485288").unwrap()[0].count, 1);
+    }
+
+    #[test]
+    fn update_record_counts_upgrades_monotonically_by_dedupe_key() {
+        let conn = memory_db();
+        insert_records(&conn, "106485288", &[record("2025-05-01 10:00:00", "湮灭杖", 2)]).unwrap();
+
+        let mut upgrade = record("2025-05-01 10:00:00", "湮灭杖", 2);
+        upgrade.count = 3;
+        assert_eq!(update_record_counts(&conn, "106485288", &[upgrade.clone()]).unwrap(), 1);
+        assert_eq!(load_records(&conn, "106485288").unwrap()[0].count, 3);
+
+        // 新值 ≤ 既有:只增不减,无操作(幂等)
+        assert_eq!(update_record_counts(&conn, "106485288", &[upgrade]).unwrap(), 0);
+        let mut smaller = record("2025-05-01 10:00:00", "湮灭杖", 2);
+        smaller.count = 2;
+        assert_eq!(update_record_counts(&conn, "106485288", &[smaller]).unwrap(), 0);
+        assert_eq!(load_records(&conn, "106485288").unwrap()[0].count, 3);
+
+        // 键不存在的记录与其他玩家档案不受影响
+        assert_eq!(
+            update_record_counts(&conn, "106485288", &[record("2024-01-01 00:00:00", "不存在", 1)]).unwrap(),
+            0
+        );
+        assert_eq!(
+            update_record_counts(&conn, "42", &[record("2025-05-01 10:00:00", "湮灭杖", 2)]).unwrap(),
+            0
+        );
+    }
+
+    #[test]
+    fn migration_adds_count_column_to_legacy_table_with_default_one() {
+        let conn = Connection::open_in_memory().unwrap();
+        // 旧版 schema(#15 之前):无 count 列,已含历史数据
+        conn.execute_batch(
+            "CREATE TABLE pull_records (
+                player_id      TEXT NOT NULL,
+                card_pool_type INTEGER NOT NULL,
+                card_pool_id   INTEGER,
+                time           TEXT NOT NULL,
+                name           TEXT NOT NULL,
+                quality_level  INTEGER NOT NULL,
+                resource_id    TEXT,
+                resource_type  TEXT
+            );
+            INSERT INTO pull_records (player_id, card_pool_type, card_pool_id, time, name, quality_level, resource_id, resource_type)
+            VALUES ('106485288', 1, 100074, '2025-05-01 10:00:00', '长离', 5, '21010043', '角色');",
+        )
+        .unwrap();
+
+        init_schema(&conn).unwrap();
+        let loaded = load_records(&conn, "106485288").unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].count, 1); // 旧行默认 1,无损迁移
+        // 迁移后新写入携带 count 正常
+        let mut merged = record("2025-05-02 10:00:00", "折枝", 1);
+        merged.count = 5;
+        insert_records(&conn, "106485288", &[merged]).unwrap();
+        assert_eq!(load_records(&conn, "106485288").unwrap()[0].count, 5);
+    }
+
+    #[test]
+    fn migration_is_idempotent_when_column_already_exists() {
+        let conn = memory_db();
+        init_schema(&conn).unwrap();
+        init_schema(&conn).unwrap(); // 新库重复初始化不报「duplicate column」
+        insert_records(&conn, "106485288", &[record("2025-05-01 10:00:00", "长离", 1)]).unwrap();
+        assert_eq!(load_records(&conn, "106485288").unwrap()[0].count, 1);
     }
 
     #[test]
@@ -327,14 +494,24 @@ mod tests {
 
     #[test]
     fn record_json_roundtrip_uses_camel_case() {
-        let original = record("2025-05-01 10:00:00", "长离", 1);
+        let mut original = record("2025-05-01 10:00:00", "长离", 1);
+        original.count = 3;
         let json = serde_json::to_string(&original).unwrap();
         assert!(json.contains("\"cardPoolType\":1"));
         assert!(json.contains("\"qualityLevel\":5"));
         assert!(json.contains("\"cardPoolId\":100074"));
+        assert!(json.contains("\"count\":3"));
 
         let parsed: PullRecord = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed, original);
+    }
+
+    #[test]
+    fn record_json_without_count_defaults_to_one() {
+        // 旧前端/旧备份的记录无 count 字段:缺省按 1(#15 兼容)
+        let legacy = r#"{"cardPoolType":1,"cardPoolId":100074,"time":"2025-05-01 10:00:00","name":"长离","qualityLevel":5,"resourceId":"21010043","resourceType":"角色"}"#;
+        let parsed: PullRecord = serde_json::from_str(legacy).unwrap();
+        assert_eq!(parsed.count, 1);
     }
 
     #[test]

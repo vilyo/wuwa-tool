@@ -25,6 +25,7 @@ function record(overrides: Partial<GachaRecord> = {}): GachaRecord {
     qualityLevel: 3,
     resourceId: '21050001',
     resourceType: '武器',
+    count: 1,
     ...overrides,
   }
 }

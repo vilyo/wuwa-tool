@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   queryPool: vi.fn(),
   loadRecords: vi.fn(),
   insertRecords: vi.fn(),
+  updateRecordCounts: vi.fn(),
   listArchives: vi.fn(),
   probeGameDir: vi.fn(),
   extractLinks: vi.fn(),
@@ -23,7 +24,11 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/services/tauriPorts', () => ({
   tauriGachaApi: { queryPool: mocks.queryPool },
-  tauriStorage: { loadRecords: mocks.loadRecords, insertRecords: mocks.insertRecords },
+  tauriStorage: {
+    loadRecords: mocks.loadRecords,
+    insertRecords: mocks.insertRecords,
+    updateRecordCounts: mocks.updateRecordCounts,
+  },
   realClock: { now: () => 0, sleep: vi.fn() },
   listArchives: mocks.listArchives,
   tauriDirProbe: {
@@ -75,6 +80,28 @@ function seedDb() {
     rows.push(...batch)
     db.set(playerId, rows)
     return batch.length
+  })
+  mocks.updateRecordCounts.mockImplementation(async (playerId: string, batch: GachaRecord[]) => {
+    const rows = db.get(playerId) ?? []
+    let changed = 0
+    db.set(
+      playerId,
+      rows.map((row) => {
+        const match = batch.find(
+          (item) =>
+            item.time === row.time &&
+            item.name === row.name &&
+            item.qualityLevel === row.qualityLevel &&
+            item.cardPoolType === row.cardPoolType,
+        )
+        if (match && match.count > row.count) {
+          changed += 1
+          return { ...row, count: match.count }
+        }
+        return row
+      }),
+    )
+    return changed
   })
   return db
 }
@@ -714,11 +741,11 @@ describe('records store · 切换确认与档案列表(#05)', () => {
     const db = seedDb()
     db.set('106485288', [{
       cardPoolType: 1, cardPoolId: 100074, time: '2025-05-01 10:00:00', name: '长离',
-      qualityLevel: 5, resourceId: '21010043', resourceType: '角色',
+      qualityLevel: 5, resourceId: '21010043', resourceType: '角色', count: 1,
     }])
     db.set('882210234', [
-      { cardPoolType: 1, cardPoolId: 100074, time: '2025-05-02 10:00:00', name: '维里奈', qualityLevel: 5, resourceId: '21010041', resourceType: '角色' },
-      { cardPoolType: 3, cardPoolId: 100075, time: '2025-05-03 10:00:00', name: '维里奈', qualityLevel: 4, resourceId: '21050041', resourceType: '角色' },
+      { cardPoolType: 1, cardPoolId: 100074, time: '2025-05-02 10:00:00', name: '维里奈', qualityLevel: 5, resourceId: '21010041', resourceType: '角色', count: 1 },
+      { cardPoolType: 3, cardPoolId: 100075, time: '2025-05-03 10:00:00', name: '维里奈', qualityLevel: 4, resourceId: '21050041', resourceType: '角色', count: 1 },
     ])
     mocks.listArchives.mockResolvedValue([
       { playerId: '882210234', count: 2, firstTime: null, lastTime: null },
@@ -1035,6 +1062,7 @@ describe('records store · 备份恢复与清空(#12)', () => {
       qualityLevel: 5,
       resourceId: '21010043',
       resourceType: '角色',
+      count: 1,
     }
   }
 

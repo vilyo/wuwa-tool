@@ -51,6 +51,23 @@ function fakeStorage() {
       db.push(...batch)
       return batch.length
     },
+    async updateRecordCounts(_playerId, batch) {
+      let changed = 0
+      for (const item of batch) {
+        const row = db.find(
+          (candidate) =>
+            candidate.time === item.time &&
+            candidate.name === item.name &&
+            candidate.qualityLevel === item.qualityLevel &&
+            candidate.cardPoolType === item.cardPoolType,
+        )
+        if (row && item.count > row.count) {
+          row.count = item.count
+          changed += 1
+        }
+      }
+      return changed
+    },
   }
   return { storage, db }
 }

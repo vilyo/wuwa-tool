@@ -21,6 +21,7 @@ function record(overrides: Partial<GachaRecord> = {}): GachaRecord {
     qualityLevel: 5,
     resourceId: '21010043',
     resourceType: '角色',
+    count: 1,
     ...overrides,
   }
 }
@@ -44,6 +45,7 @@ function fakeFilePort() {
 /** 伪造存储端口:按 player_id 分桶的内存库,贴近真实 SQLite 档案隔离 */
 function fakeStorage() {
   const db = new Map<string, GachaRecord[]>()
+  const updatedBatches: Array<{ playerId: string; records: GachaRecord[] }> = []
   const storage: BackupStoragePort = {
     async loadRecords(playerId) {
       return [...(db.get(playerId) ?? [])]
@@ -54,8 +56,31 @@ function fakeStorage() {
       db.set(playerId, rows)
       return batch.length
     },
+    async updateRecordCounts(playerId, batch) {
+      updatedBatches.push({ playerId, records: [...batch] })
+      const rows = db.get(playerId) ?? []
+      let changed = 0
+      db.set(
+        playerId,
+        rows.map((row) => {
+          const match = batch.find(
+            (item) =>
+              item.time === row.time &&
+              item.name === row.name &&
+              item.qualityLevel === row.qualityLevel &&
+              item.cardPoolType === row.cardPoolType,
+          )
+          if (match && match.count > row.count) {
+            changed += 1
+            return { ...row, count: match.count }
+          }
+          return row
+        }),
+      )
+      return changed
+    },
   }
-  return { db, storage }
+  return { db, storage, updatedBatches }
 }
 
 describe('备份文件格式(#12)', () => {
@@ -74,7 +99,7 @@ describe('备份文件格式(#12)', () => {
     expect(parsed['exportedAt']).toBe('2026-09-26T08:00:00.000Z')
     const rows = parsed['records'] as Array<Record<string, unknown>>
     expect(rows).toHaveLength(2)
-    // 全字段落盘(D2 口径):cardPoolType/cardPoolId/time/name/qualityLevel/resourceId/resourceType
+    // 全字段落盘(D2 口径 + #15 count):cardPoolType/cardPoolId/time/name/qualityLevel/resourceId/resourceType/count
     expect(rows[0]).toEqual({
       cardPoolType: 1,
       cardPoolId: 100074,
@@ -83,7 +108,39 @@ describe('备份文件格式(#12)', () => {
       qualityLevel: 5,
       resourceId: '21010043',
       resourceType: '角色',
+      count: 1,
     })
+  })
+
+  it('导出携带 count>1 并往返保留(#15)', () => {
+    const merged = [record({ count: 3, qualityLevel: 3, name: '湮灭杖' })]
+    const text = serializeBackup(buildBackup('106485288', merged, '2026-09-26T08:00:00.000Z'))
+    const parsed = parseBackup(text)
+    expect(parsed.records).toEqual(merged)
+  })
+
+  it('旧版备份(v1)无 count 字段:按 1 兼容导入(#15)', () => {
+    const legacy = JSON.stringify({
+      app: 'wuwatool',
+      version: 1,
+      playerId: '106485288',
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      records: [
+        {
+          cardPoolType: 1,
+          cardPoolId: 100074,
+          time: '2025-05-01 10:00:00',
+          name: '长离',
+          qualityLevel: 5,
+          resourceId: '21010043',
+          resourceType: '角色',
+        },
+      ],
+    })
+
+    const parsed = parseBackup(legacy)
+    expect(parsed.version).toBe(1)
+    expect(parsed.records).toEqual([record()])
   })
 
   it('parseBackup:合法备份解析回来与原档案一致', () => {
@@ -95,7 +152,7 @@ describe('备份文件格式(#12)', () => {
     expect(parsed.records).toEqual(records)
   })
 
-  it('parseBackup:容错可选字段缺失(cardPoolId/resourceId/resourceType 兜底)', () => {
+  it('parseBackup:容错可选字段缺失(cardPoolId/resourceId/resourceType/count 兜底)', () => {
     const text = JSON.stringify({
       app: 'wuwatool',
       version: BACKUP_FORMAT_VERSION,
@@ -113,8 +170,22 @@ describe('备份文件格式(#12)', () => {
         qualityLevel: 5,
         resourceId: '',
         resourceType: '',
+        count: 1,
       },
     ])
+  })
+
+  it('parseBackup:count 非法(0/负数/小数)一律按 1(#15)', () => {
+    for (const count of [0, -2, 1.5, '3', null]) {
+      const text = JSON.stringify({
+        app: 'wuwatool',
+        version: BACKUP_FORMAT_VERSION,
+        playerId: '106485288',
+        exportedAt: '2026-09-26T08:00:00.000Z',
+        records: [{ cardPoolType: 1, time: '2025-05-01 10:00:00', name: '长离', qualityLevel: 5, count }],
+      })
+      expect(parseBackup(text).records[0]!.count, `count=${String(count)}`).toBe(1)
+    }
   })
 
   it.each([
@@ -202,6 +273,29 @@ describe('导入合并语义(#12):同一去重键 time+name+qualityLevel+cardPoo
     expect(first.added).toHaveLength(1)
     expect(second.added).toHaveLength(0)
     expect(second.total).toBe(1)
+  })
+
+  it('同键 count 升级(#15):备份 count>1 而库内为 1 时按键升级,新值较小时无操作', async () => {
+    const { file } = fakeFilePort()
+    const { db, storage, updatedBatches } = fakeStorage()
+    // 库内为修复前口径 count=1;备份来自修复后导出 count=3
+    db.set('106485288', [record({ resourceId: '旧资源id' })])
+    await file.writeTextFile(
+      '/backup.json',
+      serializeBackup(buildBackup('106485288', [record({ count: 3 })], '2026-09-26T08:00:00.000Z')),
+    )
+
+    const result = await importBackup({ file, storage }, '/backup.json')
+
+    expect(result.added).toHaveLength(0) // 无新行,只升级
+    expect(updatedBatches).toEqual([
+      // 升级记录 = 既有行口径 + 升级后的 count(其余字段不被备份内容覆盖)
+      { playerId: '106485288', records: [record({ resourceId: '旧资源id', count: 3 })] },
+    ])
+    const rows = db.get('106485288')!
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.count).toBe(3)
+    expect(rows[0]!.resourceId).toBe('旧资源id') // 其余字段不被覆盖
   })
 })
 

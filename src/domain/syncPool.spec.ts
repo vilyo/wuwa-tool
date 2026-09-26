@@ -47,6 +47,7 @@ function fakeApi(responses: string[]) {
 
 function fakeStorage(initial: GachaRecord[] = []) {
   const insertedBatches: GachaRecord[][] = []
+  const updatedBatches: GachaRecord[][] = []
   let db = initial
   const storage: StoragePort = {
     async loadRecords() {
@@ -57,8 +58,27 @@ function fakeStorage(initial: GachaRecord[] = []) {
       db = [...db, ...batch]
       return batch.length
     },
+    async updateRecordCounts(_playerId, batch) {
+      updatedBatches.push([...batch])
+      let changed = 0
+      db = db.map((row) => {
+        const match = batch.find(
+          (item) =>
+            item.time === row.time &&
+            item.name === row.name &&
+            item.qualityLevel === row.qualityLevel &&
+            item.cardPoolType === row.cardPoolType,
+        )
+        if (match && match.count > row.count) {
+          changed += 1
+          return { ...row, count: match.count }
+        }
+        return row
+      })
+      return changed
+    },
   }
-  return { storage, insertedBatches }
+  return { storage, insertedBatches, updatedBatches }
 }
 
 function fakeClock() {
@@ -88,6 +108,7 @@ function seedRecord(time: string): GachaRecord {
     qualityLevel: 5,
     resourceId: '21010043',
     resourceType: '角色',
+    count: 1,
   }
 }
 
@@ -126,6 +147,80 @@ describe('单池拉取编排', () => {
 
     expect(second.added).toBe(0)
     expect(storage.insertedBatches).toHaveLength(1)
+    expect(storage.updatedBatches).toHaveLength(0)
+  })
+
+  it('同键 count 升级(#15):旧库 count=1 遇官方 count>1 时无新增行,按键升级并持久化', async () => {
+    // 旧库 seed 为修复前口径 count=1;官方返回同键记录 count=3(同秒多抽合并)
+    const storage = fakeStorage([seedRecord('2025-05-01 10:00:00')])
+    const api = fakeApi([
+      JSON.stringify({
+        code: 0,
+        message: 'ok',
+        data: [
+          {
+            cardPoolType: '角色精准调谐',
+            resourceId: 21010043,
+            qualityLevel: 5,
+            resourceType: '角色',
+            name: ` resonator 2025-05-01 10:00:00`,
+            count: 3,
+            time: '2025-05-01 10:00:00',
+          },
+        ],
+      }),
+    ])
+
+    const result = await syncPool(LINK, deps({ api: api.api, storage: storage.storage }))
+
+    expect(result).toEqual({ poolCode: 1, fetched: 1, added: 0, total: 1 })
+    expect(storage.insertedBatches).toHaveLength(0)
+    expect(storage.updatedBatches).toEqual([
+      [{ ...seedRecord('2025-05-01 10:00:00'), count: 3 }],
+    ])
+    // 升级已写入假库(重同步可自愈)
+    expect(await storage.storage.loadRecords('106485288')).toEqual([
+      { ...seedRecord('2025-05-01 10:00:00'), count: 3 },
+    ])
+  })
+
+  it('同键多行聚合(#15 真实机制):官方逐抽返回的同秒同名多件,重同步后升级为一条 count=N', async () => {
+    // 旧库只有同名同秒的 1 行(count=1,当年第二件被唯一索引丢弃);官方同键返回 2 行
+    const storage = fakeStorage([seedRecord('2025-05-01 10:00:00')])
+    const api = fakeApi([
+      JSON.stringify({
+        code: 0,
+        message: 'ok',
+        data: [
+          {
+            cardPoolType: '角色精准调谐',
+            resourceId: 21010043,
+            qualityLevel: 5,
+            resourceType: '角色',
+            name: ` resonator 2025-05-01 10:00:00`,
+            count: 1,
+            time: '2025-05-01 10:00:00',
+          },
+          {
+            cardPoolType: '角色精准调谐',
+            resourceId: 21010043,
+            qualityLevel: 5,
+            resourceType: '角色',
+            name: ` resonator 2025-05-01 10:00:00`,
+            count: 1,
+            time: '2025-05-01 10:00:00',
+          },
+        ],
+      }),
+    ])
+
+    const result = await syncPool(LINK, deps({ api: api.api, storage: storage.storage }))
+
+    expect(result).toEqual({ poolCode: 1, fetched: 2, added: 0, total: 1 })
+    expect(storage.insertedBatches).toHaveLength(0)
+    expect(storage.updatedBatches).toEqual([
+      [{ ...seedRecord('2025-05-01 10:00:00'), count: 2 }],
+    ])
   })
 
   it('code != 0 判定链接失效,不重试、不写库,文案引导重开唤取记录页', async () => {

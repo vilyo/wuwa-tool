@@ -18,6 +18,7 @@ function record(cardPoolType: number): GachaRecord {
     qualityLevel: 3,
     resourceId: '21050011',
     resourceType: '武器',
+    count: 1,
   }
 }
 

@@ -10,6 +10,7 @@ pub fn run() {
             gacha::gacha_query,
             db::db_insert_records,
             db::db_load_records,
+            db::db_update_record_counts,
             db::db_list_archives,
             db::db_clear_archive,
             db::db_export_to_file,

@@ -26,6 +26,8 @@ export interface StoragePort {
   loadRecords(playerId: string): Promise<GachaRecord[]>
   /** 批量写入应事务化;返回实际新插入行数 */
   insertRecords(playerId: string, records: readonly GachaRecord[]): Promise<number>
+  /** 按去重键升级既有记录的 count(只增不减,新值 ≤ 既有为无操作,#15);返回实际升级行数 */
+  updateRecordCounts(playerId: string, records: readonly GachaRecord[]): Promise<number>
 }
 
 /** 时钟端口:重试/限速间隔注入,测试用假时钟 */

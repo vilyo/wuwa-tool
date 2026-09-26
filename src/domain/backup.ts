@@ -2,10 +2,11 @@
  *  去重键与库内一致:time + name + qualityLevel + cardPoolType(D2),复用 mergeRecords;
  *  外部世界经端口注入(文件读写、档案读写),全部可伪造单测,零 Tauri/Vue 依赖。 */
 import { DomainError } from './errors'
-import { mergeRecords, type GachaRecord } from './records'
+import { mergeRecords, normalizeCount, type GachaRecord } from './records'
 
-/** 备份文件格式版本:结构变更时递增;导入仅接受 ≤ 当前版本 */
-export const BACKUP_FORMAT_VERSION = 1
+/** 备份文件格式版本:结构变更时递增;导入仅接受 ≤ 当前版本。
+ *  v2(#15):记录携带 count(同秒多抽合并条数);v1 旧文件无该字段按 1 兼容 */
+export const BACKUP_FORMAT_VERSION = 2
 
 /** 备份文件顶层结构:UID + 全字段记录 + 导出时间 + 版本号 */
 export interface BackupFile {
@@ -30,6 +31,7 @@ export interface BackupFilePort {
 export interface BackupStoragePort {
   loadRecords(playerId: string): Promise<GachaRecord[]>
   insertRecords(playerId: string, records: readonly GachaRecord[]): Promise<number>
+  updateRecordCounts(playerId: string, records: readonly GachaRecord[]): Promise<number>
 }
 
 /** 组装备份文件对象(不改写入参) */
@@ -88,7 +90,8 @@ export function parseBackup(text: string): BackupFile {
   }
 }
 
-/** 单条记录解析:去重键四字段必须齐全(自家导出必写),可选字段兜底(D2 口径) */
+/** 单条记录解析:去重键四字段必须齐全(自家导出必写),可选字段兜底(D2 口径)。
+ *  count 为 v2 新增可选字段:旧备份(v1)与外部数据缺省按 1,非法值同样按 1(#15) */
 function parseBackupRecord(raw: unknown): GachaRecord {
   if (raw === null || typeof raw !== 'object') {
     throw new DomainError('备份文件的记录格式不正确')
@@ -114,6 +117,7 @@ function parseBackupRecord(raw: unknown): GachaRecord {
     qualityLevel,
     resourceId: typeof item['resourceId'] === 'string' ? item['resourceId'] : '',
     resourceType: typeof item['resourceType'] === 'string' ? item['resourceType'] : '',
+    count: normalizeCount(item['count']),
   }
 }
 
@@ -145,17 +149,20 @@ export interface ImportBackupResult {
   total: number
 }
 
-/** 导入:读文件 → 解析 → 与目标档案既有记录按去重键合并 → 只写新增部分(单事务由存储层保证)。
- *  与库内 INSERT OR IGNORE 两层语义一致,重复导入幂等 */
+/** 导入:读文件 → 解析 → 与目标档案既有记录按去重键合并 → 只写新增部分与 count 升级
+ *  (单事务由存储层保证)。与库内 INSERT OR IGNORE / count 单调升级两层语义一致,重复导入幂等 */
 export async function importBackup(
   deps: { file: BackupFilePort; storage: BackupStoragePort },
   path: string,
 ): Promise<ImportBackupResult> {
   const backup = parseBackup(await deps.file.readTextFile(path))
   const existing = await deps.storage.loadRecords(backup.playerId)
-  const { added } = mergeRecords(existing, backup.records)
+  const { added, updated } = mergeRecords(existing, backup.records)
   if (added.length > 0) {
     await deps.storage.insertRecords(backup.playerId, added)
+  }
+  if (updated.length > 0) {
+    await deps.storage.updateRecordCounts(backup.playerId, updated)
   }
   return { playerId: backup.playerId, added, total: existing.length + added.length }
 }

@@ -45,6 +45,7 @@ function record(name: string): GachaRecord {
     qualityLevel: 5,
     resourceId: '21010043',
     resourceType: '角色',
+    count: 1,
   }
 }
 

@@ -1,6 +1,8 @@
 /**
  * 统计口径核心(spec「Implementation Decisions · 统计口径与评语」,全量定义见 PRD §5)。
  *
+ * - 全部抽数类统计按 count 加权(#15):一条记录 = count 抽(官方同秒多抽合并),
+ *   totalPulls = Σcount;出货抽数/保底进度逐条累加 count(五星 count 恒为 1,行为不变)。
  * - 出货抽数含出货那一抽,按池内时间正序累计;池内最早记录即五星时按 1 计并标「不完整」。
  * - 歪判定经常驻名单反向判定(ADR-0002);歪率仅对角色系限定池(1/8/10/12)计算,
  *   未知物品不计入分母;武器系限定池(2/9/11/13)五星必中 UP。
@@ -25,7 +27,7 @@ export interface FiveStarPull {
 
 /** 保底进度:当前垫抽数对照五星硬保底 */
 export interface PityProgress {
-  /** 自该池上一个五星之后的抽数;池内无五星时 = 本地可见的全部记录数 */
+  /** 自该池上一个五星之后的抽数(按 count 加权);池内无五星时 = 本地可见全部记录的 Σcount */
   current: number
   /** 五星硬保底(池 5 = 50,其余 80) */
   hard: number
@@ -36,7 +38,7 @@ export interface PoolStats {
   /** 池 code;跨池合计(总评数据集)时为 null */
   cardPoolType: number | null
   category: PoolCategory
-  /** 该数据集的全部记录数 = 总唤取 */
+  /** 总唤取 = Σcount(同秒多抽合并条按 count 加权,#15) */
   totalPulls: number
   /** 五星出货列表,时间正序 */
   fives: FiveStarPull[]
@@ -63,7 +65,7 @@ function computeStats(
   let sinceLastFive = 0
   for (let i = 0; i < asc.length; i += 1) {
     const record = asc[i]!
-    sinceLastFive += 1
+    sinceLastFive += record.count
     if (record.qualityLevel !== 5) continue
     fives.push({
       record,
@@ -80,7 +82,7 @@ function computeStats(
   return {
     cardPoolType,
     category,
-    totalPulls: asc.length,
+    totalPulls: asc.reduce((sum, record) => sum + record.count, 0),
     fives,
     avgPulls: fives.length > 0 ? fives.reduce((sum, five) => sum + five.pulls, 0) / fives.length : null,
     offRate:
