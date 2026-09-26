@@ -1,0 +1,126 @@
+/* 数字字体 Barlow Semi Condensed(latin 子集,500–700)本地打包:
+   本应用承诺除官方接口外零网络请求,不走任何字体 CDN。 */
+@font-face {
+  font-family: 'Barlow Semi Condensed';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../assets/fonts/barlow-semi-condensed-500.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Barlow Semi Condensed';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../assets/fonts/barlow-semi-condensed-600.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Barlow Semi Condensed';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../assets/fonts/barlow-semi-condensed-700.woff2') format('woff2');
+}
+
+/* ============ 设计系统 v11 终稿 tokens ============
+   明色为默认主题,强调色随主题:明 = 共鸣青,暗 = 低饱和金;
+   低饱和金贯穿两主题承担五星/评级/荣誉(小面积)。
+   数值来源:docs/design/DESIGN-SYSTEM.md(v11)与定稿原型 docs/prototype/index.html。 */
+
+:root {
+  /* 明色(默认):雾白底座 + 共鸣青 */
+  --bg: #ecefed;
+  --bg-raise: #f2f4f3;
+  --panel: #f7f8f5;
+  --panel-2: #e9edeb;
+  --hairline: #c7cdcc;
+  --hairline-2: #b2bab8;
+  --text: #202426;
+  --text-2: #5e686a;
+  --text-3: #737b7e;
+  --accent: #4fa6ab;
+  --accent-soft: #8fd8d4;
+  --accent-ink: #1f7e7a;
+  --btn: #72d5d1;
+  --btn-ink: #0e2b2a;
+  --win: #4fa6ab;
+  --on-win: #0e2b2a;
+  --win-wash: rgba(114, 213, 209, 0.22);
+  --win-ink: #1f7e7a;
+  --rarity: #c8b783;
+  --rarity-ink: #77683c;
+  --rarity-wash: rgba(200, 183, 131, 0.12);
+  --gold-bright: #c8b783;
+  --ink: #171a1c;
+  --ink-text: #ecefed;
+  --purple: #8e6fd0;
+  --blue: #5c8fbf;
+  --off: #6e7b86;
+  --danger: #b94a42;
+  --lucky: #1b8556;
+  --wash-off: rgba(110, 123, 134, 0.16);
+  --row-hover: #e9edeb;
+  --backdrop: rgba(23, 26, 28, 0.45);
+  --shadow-win: 0 1px 3px rgba(23, 26, 28, 0.08), 0 10px 30px rgba(23, 26, 28, 0.1);
+  --shadow-pop: 0 18px 50px rgba(23, 26, 28, 0.22);
+
+  color-scheme: light;
+
+  /* 字体与动效 */
+  --font-body: -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+  --font-num: 'Barlow Semi Condensed', 'PingFang SC', sans-serif;
+  --t-fast: 150ms;
+  --t-med: 260ms;
+
+  /* 形状母语:斜切角度(池标签、主按钮、徽章;内容反向回正) */
+  --skew: -10deg;
+
+  /* 黑条(标题栏/抽屉头)上的暖白系:黑条在两主题下均为近黑,故不随主题变化 */
+  --ink-wash: rgba(246, 243, 232, 0.08);
+  --ink-wash-strong: rgba(246, 243, 232, 0.12);
+  --ink-line: rgba(246, 243, 232, 0.25);
+  --ink-text-dim: rgba(246, 243, 232, 0.78);
+  --ink-text-faint: rgba(246, 243, 232, 0.6);
+}
+
+html[data-theme='dark'] {
+  /* 暗色:炭黑底座 + 低饱和金(不引入青) */
+  --bg: #171a1c;
+  --bg-raise: #1b1e20;
+  --panel: #292d30;
+  --panel-2: #33383b;
+  --hairline: #3a4043;
+  --hairline-2: #4d5457;
+  --text: #ecefed;
+  --text-2: #a6adac;
+  --text-3: #737b7e;
+  --accent: #c8b783;
+  --accent-soft: #94845f;
+  --accent-ink: #d6c89a;
+  --btn: #c8b783;
+  --btn-ink: #262013;
+  --win: #c8b783;
+  --on-win: #262013;
+  --win-wash: rgba(200, 183, 131, 0.15);
+  --win-ink: #d6c89a;
+  --rarity: #c8b783;
+  --rarity-ink: #d6c89a;
+  --rarity-wash: rgba(200, 183, 131, 0.12);
+  --gold-bright: #c8b783;
+  --ink: #0f1213;
+  --ink-text: #ecefed;
+  --purple: #a98be0;
+  --blue: #6fa3d4;
+  --off: #8b98a4;
+  --danger: #e0655c;
+  --lucky: #4cc38a;
+  --wash-off: rgba(139, 152, 164, 0.13);
+  --row-hover: #2b3033;
+  --backdrop: rgba(8, 10, 10, 0.6);
+  --shadow-win: 0 1px 3px rgba(0, 0, 0, 0.4), 0 10px 30px rgba(0, 0, 0, 0.35);
+  --shadow-pop: 0 18px 50px rgba(0, 0, 0, 0.55);
+
+  color-scheme: dark;
+}

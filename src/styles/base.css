@@ -1,0 +1,74 @@
+/* ============ 全局基底 ============ */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font: 14px/1.6 var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+/* 焦点可见(强调色 2px outline,设计系统交付检查项) */
+button:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* 数字用 Barlow Semi Condensed + 等宽数字 */
+.num {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 菱形:品牌符与项目符的母语形状 */
+.dia {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  background: var(--accent);
+  transform: rotate(45deg);
+  flex: none;
+}
+
+.dia.sm {
+  width: 5px;
+  height: 5px;
+}
+
+/* 空态等场合的描边大菱形(空心,金 = 稀有度强调) */
+.dia.lg {
+  width: 18px;
+  height: 18px;
+  background: transparent;
+  border: 1.5px solid var(--rarity);
+}
+
+/* 「减少动态效果」开启时全部动画自动关闭(设计系统交付检查项) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}

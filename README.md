@@ -4,7 +4,7 @@
 
 纯本地的《鸣潮》（Wuthering Waves）PC 唤取记录统计工具，面向 Windows。自动从客户端本地日志提取官方唤取链接，按卡池拉取全部记录并永久保存在本机，再用统计 + 趣味评语回答那个问题：这一路抽卡，到底是欧是非。
 
-**当前状态**：设计已定稿（原型 / 视觉 / Spec 齐备），工程开发启动中，暂无可运行版本。
+**当前状态**：工程已初始化，`npm run tauri dev` 可打开应用壳（顶栏 / 空态 / 状态栏）；功能票按 spec 逐张实现中，暂无可发布版本。
 
 ## 功能（V1 规划）
 
@@ -43,7 +43,16 @@ Tauri 2 + Vue 3 + TypeScript + Pinia。业务逻辑全部在前端 TS，Rust 仅
 
 ## 开发
 
-工程脚手架尚未搭建，技术选型与约束见 [ADR-0001](docs/adr/0001-tauri-2-desktop-shell.md)；安装 / 构建 / 测试命令将在工程初始化后补充到本节。
+环境要求：Node ≥ 20（本机走 nvm）、Rust stable。开发在 macOS 进行，发布构建仅在 Windows 机上执行（见 [ADR-0001](docs/adr/0001-tauri-2-desktop-shell.md)）。
+
+```bash
+npm install            # 安装依赖
+npm run tauri dev      # 桌面开发（Vite + Rust 同时起）
+npm test               # Vitest 单元测试
+npm run typecheck      # vue-tsc 类型检查
+npm run lint           # ESLint
+npm run build          # 前端生产构建（含类型检查）
+```
 
 ## 声明
 

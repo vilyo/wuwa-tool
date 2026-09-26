@@ -9,10 +9,10 @@
 
 ## 当前状态
 
-- 项目刚起步，工作区暂无任何代码；技术选型已定：Tauri 2 + TypeScript 前端（见 docs/adr/0001）。
+- 工程已初始化（#01 应用骨架）：Tauri 2 + Vue 3 + TypeScript + Pinia，设计系统 v11 tokens 已落地；票务进度见 `.scratch/v1-huanqu-archive/issues/`。
 - 设计已定稿：交互与视觉以 docs/prototype/index.html（定稿原型）与 docs/design/DESIGN-SYSTEM.md（v11）为准；编年史为五星卡片网格名册（见 docs/adr/0007）。
 - 正式 Spec 已发布：`.scratch/v1-huanqu-archive/spec.md`（Status: ready-for-agent）；需求全文见 docs/PRD.md（V1.0 定稿）。
-- 尚未初始化 git。
+- 开发在 macOS 进行，发布构建仅在 Windows 机上执行（见 docs/adr/0001）；本机 npm 走 nvm、cargo 在 `~/.cargo/bin`，非交互 shell 需先把两者加入 PATH。
 
 ## Agent skills
 
@@ -47,4 +47,14 @@
 
 ## 常用命令
 
-（待技术栈确定后补充：安装依赖、开发、构建、类型检查、lint、测试命令）
+（在仓库根目录执行；本机需先 `export PATH="$HOME/.nvm/versions/node/v24.21.0/bin:$HOME/.cargo/bin:$PATH"`）
+
+- 安装依赖：`npm install`
+- 桌面开发：`npm run tauri dev`（会同时起 Vite 与 Rust 编译）
+- 前端生产构建：`npm run build`（含 vue-tsc 类型检查）
+- 类型检查：`npm run typecheck`
+- Lint：`npm run lint`（自动修复：`npx eslint . --fix`）
+- 测试：`npm test`（单次）/ `npm run test:watch`
+- Rust 检查：`cd src-tauri && cargo check`
+- 应用图标再生成：`node scripts/make-icon.mjs && npm run tauri icon -- scripts/app-icon.png -o src-tauri/icons`
+- 注意：`version` 同时存在于 `package.json` 与 `src-tauri/tauri.conf.json`，发版时两处需同步。
