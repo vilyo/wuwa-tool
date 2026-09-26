@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| 版本 | V1.0 定稿（原「默认假设」已于 2026-09-26 固化为 §9 决策；正式 Spec 见 [.scratch/v1-huanqu-archive/spec.md](../.scratch/v1-huanqu-archive/spec.md)） |
+| 版本 | V1.0 定稿（原「默认假设」已于 2026-09-26 固化为 §9 决策；正式 Spec 见 [.scratch/v1-wuwatool/spec.md](../.scratch/v1-wuwatool/spec.md)） |
 | 日期 | 2026-09-26 |
 | 平台 | Windows 10/11 x64 桌面应用 |
 | 关联文档 | [CONTEXT.md](../CONTEXT.md)（术语表）、[设计系统](./design/DESIGN-SYSTEM.md)（v11 终稿）、[交互定稿原型](./prototype/index.html)、[ADR-0001 桌面壳](./adr/0001-tauri-2-desktop-shell.md)、[ADR-0002 歪判定](./adr/0002-standard-roster-off-banner-detection.md)、[ADR-0003 信息架构](./adr/0003-single-canvas-chronicle-ia.md)、[ADR-0004 视觉母语](./adr/0004-game-native-visual-language.md)、[ADR-0005 头像资产](./adr/0005-avatar-asset-source.md)、[ADR-0006 配色定稿](./adr/0006-final-palette.md)、[ADR-0007 名册网格](./adr/0007-chronicle-roster-grid.md)、[ADR-0008 便携分发](./adr/0008-portable-zip-only.md)、[技术调研汇报](./research-2026-09-25-gacha-api.md) |

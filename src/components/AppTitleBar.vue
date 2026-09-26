@@ -19,7 +19,7 @@ const appWindow = getCurrentWindow()
         class="dia"
         aria-hidden="true"
       />
-      <span class="brand-name">唤取档案</span>
+      <span class="brand-name">鸣潮工具箱</span>
       <span class="brand-tag">V1</span>
     </div>
     <div

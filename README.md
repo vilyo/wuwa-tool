@@ -1,6 +1,6 @@
-# 唤取档案 · 鸣潮唤取记录统计助手
+# 鸣潮工具箱（wuwatool）· 鸣潮唤取记录统计助手
 
-> 工作名「唤取档案」，最终名称待定。
+> 显示名「鸣潮工具箱」，技术名 `wuwatool`（原工作名「唤取档案」，2026-09-26 定名）。
 
 纯本地的《鸣潮》（Wuthering Waves）PC 唤取记录统计工具，面向 Windows。自动从客户端本地日志提取官方唤取链接，按卡池拉取全部记录并永久保存在本机，再用统计 + 趣味评语回答那个问题：这一路抽卡，到底是欧是非。
 
@@ -39,7 +39,7 @@ Tauri 2 + Vue 3 + TypeScript + Pinia。业务逻辑全部在前端 TS，Rust 仅
 | [CONTEXT.md](CONTEXT.md) | 领域术语表 |
 | [docs/adr/](docs/adr/) | 架构决策记录 ADR-0001 ~ 0008 |
 | [docs/research-2026-09-25-gacha-api.md](docs/research-2026-09-25-gacha-api.md) | 官方接口技术调研（含来源） |
-| [.scratch/v1-huanqu-archive/spec.md](.scratch/v1-huanqu-archive/spec.md) | V1 正式 Spec |
+| [.scratch/v1-wuwatool/spec.md](.scratch/v1-wuwatool/spec.md) | V1 正式 Spec |
 
 ## 开发
 

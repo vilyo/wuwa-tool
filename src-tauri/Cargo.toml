@@ -1,15 +1,15 @@
 [package]
-name = "huanqu"
+name = "wuwatool"
 version = "0.1.0"
-description = "唤取档案 —— 鸣潮唤取记录本地统计助手"
+description = "鸣潮工具箱 —— 唤取记录本地统计助手"
 edition = "2021"
 
 [lib]
-name = "huanqu_lib"
+name = "wuwatool_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [[bin]]
-name = "huanqu"
+name = "wuwatool"
 path = "src/main.rs"
 
 [build-dependencies]

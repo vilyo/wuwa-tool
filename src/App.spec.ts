@@ -19,7 +19,7 @@ describe('应用壳(冒烟)', () => {
   it('渲染顶栏品牌与三个占位入口', () => {
     const wrapper = mountApp()
 
-    expect(wrapper.find('.brand-name').text()).toBe('唤取档案')
+    expect(wrapper.find('.brand-name').text()).toBe('鸣潮工具箱')
     expect(wrapper.text()).toContain('一键同步')
     expect(wrapper.text()).toContain('记录')
     expect(wrapper.find('button[aria-label="打开设置"]').exists()).toBe(true)
@@ -58,11 +58,11 @@ describe('主题切换(临时入口,#13 移交设置)', () => {
 })
 
 describe('Tauri 配置', () => {
-  it('窗口标题/产品名按「唤取档案」定名,打包不配置安装器(ADR-0008)', async () => {
+  it('窗口标题/产品名按「鸣潮工具箱」定名,打包不配置安装器(ADR-0008)', async () => {
     const conf = (await import('../src-tauri/tauri.conf.json')).default
 
-    expect(conf.productName).toBe('唤取档案')
-    expect(conf.app.windows[0]!.title).toBe('唤取档案')
+    expect(conf.productName).toBe('鸣潮工具箱')
+    expect(conf.app.windows[0]!.title).toBe('鸣潮工具箱')
     expect(conf.bundle.targets).toEqual([])
   })
 
