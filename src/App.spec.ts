@@ -242,6 +242,59 @@ describe('池页签与联动汇总(#09)', () => {
   })
 })
 
+describe('右栏:保底引线与高光时刻(#10)', () => {
+  /** 库内口径(时间倒序)的多池种子流水 */
+  function poolHistory(
+    segments: Array<[pullsBefore: number, five: string]>,
+    poolCode: number,
+    resourceType = '角色',
+  ): GachaRecord[] {
+    const asc: GachaRecord[] = []
+    for (const [pullsBefore, five] of segments) {
+      for (let i = 0; i < pullsBefore; i += 1) asc.push(record({ cardPoolType: poolCode }))
+      asc.push(record({ cardPoolType: poolCode, name: five, qualityLevel: 5, resourceType }))
+    }
+    return [...asc].reverse()
+  }
+
+  it('档案为空时右栏不渲染(主画面空态覆盖)', () => {
+    const wrapper = mountApp()
+    expect(wrapper.find('.rail').exists()).toBe(false)
+  })
+
+  it('有档案时右栏两栏布局:三条保底引线 + 高光时刻,名册首位进行中卡', () => {
+    // 池 1:维里奈(歪)后继续垫 17 抽 → 大保底;池 2/池 3 仅垫抽
+    const records: GachaRecord[] = [
+      ...poolHistory([[3, '维里奈']], 1),
+      ...Array.from({ length: 5 }, () => record({ cardPoolType: 2 })),
+      ...Array.from({ length: 24 }, () => record({ cardPoolType: 3 })),
+      ...Array.from({ length: 17 }, () => record({ cardPoolType: 1 })),
+    ]
+    const wrapper = mountApp(records)
+
+    expect(wrapper.find('.rail').exists()).toBe(true)
+    const fuses = wrapper.findAll('.fuse-item')
+    expect(fuses).toHaveLength(3)
+    expect(fuses[0]!.find('.cnt').text()).toBe('已垫 17 · 还差 63 抽')
+    expect(fuses[0]!.find('.badge').text()).toBe('大保底')
+    expect(wrapper.find('.ipcard').exists()).toBe(true)
+
+    const moments = wrapper.findAll('.moment')
+    expect(moments[0]!.find('.t').text()).toBe('旅途')
+    expect(wrapper.findAll('.moment').some((m) => m.find('.t').text() === '大保底已就绪')).toBe(true)
+  })
+
+  it('档案只有新手池数据:引线栏与高光极端不出牌,空态占位', () => {
+    const records = poolHistory([[9, '凌阳']], 5)
+    const wrapper = mountApp(records)
+
+    expect(wrapper.find('.rail').exists()).toBe(true)
+    expect(wrapper.findAll('.fuse-item')).toHaveLength(0)
+    expect(wrapper.find('.rail-empty').exists()).toBe(true)
+    expect(wrapper.findAll('.moment')).toHaveLength(1) // 仅旅途总览
+  })
+})
+
 describe('主题切换(临时入口,#13 移交设置)', () => {
   it('点击按钮在明暗两套 tokens 间切换,明色为默认', async () => {
     const wrapper = mountApp()

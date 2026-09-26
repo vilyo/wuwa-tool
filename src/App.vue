@@ -4,7 +4,9 @@ import AppStatusBar from '@/components/AppStatusBar.vue'
 import AppTitleBar from '@/components/AppTitleBar.vue'
 import ArchiveListDialog from '@/components/ArchiveListDialog.vue'
 import FiveStarRoster from '@/components/FiveStarRoster.vue'
+import HighlightMoments from '@/components/HighlightMoments.vue'
 import PasteImport from '@/components/PasteImport.vue'
+import PityLinesPanel from '@/components/PityLinesPanel.vue'
 import PoolTabBar from '@/components/PoolTabBar.vue'
 import PoolVerdictLine from '@/components/PoolVerdictLine.vue'
 import RecordList from '@/components/RecordList.vue'
@@ -86,19 +88,31 @@ onMounted(() => {
           @select-category="selectCategory"
           @select-pool="selectPool"
         />
-        <!-- 本池评语行(#07):随页签状态联动 -->
-        <PoolVerdictLine
-          :records="recordsStore.records"
-          :pool-code="currentPoolCode"
-        />
-        <!-- 五星编年史名册(#08):随页签状态联动,名册区域内部滚动 -->
-        <FiveStarRoster
-          :records="recordsStore.records"
-          :pool-code="currentPoolCode"
-        />
-        <!-- 极简流水(#02 过渡件):正式流水抽屉在 #11,暂以限高滚动收纳在名册下方 -->
-        <div class="record-list-wrap">
-          <RecordList :records="recordsStore.records" />
+        <!-- 主区两栏(#10,定稿原型 .work):左 = 评语行 + 名册 + 流水过渡件,右 = 保底引线 + 高光时刻 -->
+        <div class="work">
+          <section class="col-main">
+            <!-- 本池评语行(#07):随页签状态联动 -->
+            <PoolVerdictLine
+              :records="recordsStore.records"
+              :pool-code="currentPoolCode"
+            />
+            <!-- 五星编年史名册(#08/#10):随页签状态联动,名册区域内部滚动 -->
+            <FiveStarRoster
+              :records="recordsStore.records"
+              :pool-code="currentPoolCode"
+            />
+            <!-- 极简流水(#02 过渡件):正式流水抽屉在 #11,暂以限高滚动收纳在名册下方 -->
+            <div class="record-list-wrap">
+              <RecordList :records="recordsStore.records" />
+            </div>
+          </section>
+          <aside
+            class="rail"
+            aria-label="保底与高光"
+          >
+            <PityLinesPanel :records="recordsStore.records" />
+            <HighlightMoments :records="recordsStore.records" />
+          </aside>
         </div>
       </template>
     </main>
@@ -127,6 +141,52 @@ onMounted(() => {
   padding: 24px;
   /* 不整体滚动:名册(flex:1)内部滚动,流水过渡件限高滚动 */
   overflow: hidden;
+}
+
+/* 主区两栏(#10,定稿原型 .work):左名册列自适应,右栏固定宽内部滚动 */
+.work {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 316px;
+  gap: 16px;
+}
+
+.col-main {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 右栏(保底引线 + 高光时刻):自身滚动,栏盒不随内容压扁名册 */
+.rail {
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--hairline-2) transparent;
+}
+
+.rail::-webkit-scrollbar {
+  width: 8px;
+}
+
+.rail::-webkit-scrollbar-thumb {
+  background: var(--hairline-2);
+}
+
+/* 窄窗口退化为单列(定稿原型 ≤1080px 断点),右栏随内容展开 */
+@media (max-width: 1080px) {
+  .work {
+    grid-template-columns: 1fr;
+  }
+
+  .rail {
+    overflow: visible;
+  }
 }
 
 /* 极简流水过渡件(#02):限高内部滚动,待 #11 流水抽屉替换后移除 */

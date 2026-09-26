@@ -186,11 +186,52 @@ describe('长线名册与空态', () => {
     expect(wrapper.find('.roster').exists()).toBe(true)
   })
 
-  it('本池无五星时显示空态,详情条不渲染', () => {
-    const wrapper = mountRoster(fillers(10))
+  it('本池无任何记录时显示空态,无进行中卡,详情条不渲染', () => {
+    const wrapper = mountRoster([], 1)
     expect(wrapper.findAll('.ftile')).toHaveLength(0)
+    expect(wrapper.find('.ipcard').exists()).toBe(false)
     expect(wrapper.find('.detail-strip').exists()).toBe(false)
     expect(wrapper.find('.roster-count').text()).toContain('0')
     expect(wrapper.text()).toContain('本池暂无五星记录')
+  })
+})
+
+describe('名册首位「进行中」卡(#10)', () => {
+  /** 最新五星之后仍在垫抽的流水:池内 39 抽出货忌炎,其后又垫了 17 抽 */
+  function historyWithTrailing(trailing: number): GachaRecord[] {
+    const asc = [...fillers(39), record({ name: '忌炎', qualityLevel: 5, resourceType: '角色' }), ...fillers(trailing)]
+    return [...asc].reverse()
+  }
+
+  it('名册首位为虚线进行中卡:已垫大数字 + 距必得剩余 + 当前池名', () => {
+    const wrapper = mountRoster(historyWithTrailing(17))
+
+    const ghost = wrapper.find('.ipcard')
+    expect(ghost.exists()).toBe(true)
+    expect(ghost.find('.ft-name').text()).toBe('进行中')
+    expect(ghost.find('.ft-sub').text()).toBe('角色精准调谐')
+    expect(ghost.find('.ft-pulls b').text()).toBe('17')
+    expect(ghost.find('.ip-note').text()).toBe('距必得五星还差 63 抽')
+  })
+
+  it('进行中卡在五星卡之前,不占用 .ftile 名册卡的计数与序位', () => {
+    const wrapper = mountRoster(historyWithTrailing(17))
+    const tiles = wrapper.findAll('.ftile')
+    expect(tiles).toHaveLength(1)
+    expect(tiles[0]!.find('.ft-name').text()).toBe('忌炎')
+    expect(wrapper.find('.roster-count').text()).toContain('1')
+  })
+
+  it('池有垫抽但尚无五星:进行中卡替代空态出现', () => {
+    const wrapper = mountRoster(fillers(10))
+    expect(wrapper.find('.ipcard').exists()).toBe(true)
+    expect(wrapper.find('.ip-note').text()).toBe('距必得五星还差 70 抽')
+    expect(wrapper.findAll('.ftile')).toHaveLength(0)
+    expect(wrapper.text()).not.toContain('本池暂无五星记录')
+  })
+
+  it('当前池无任何记录时不显示进行中卡', () => {
+    const wrapper = mountRoster([...fillers(17, 2)].reverse(), 1)
+    expect(wrapper.find('.ipcard').exists()).toBe(false)
   })
 })

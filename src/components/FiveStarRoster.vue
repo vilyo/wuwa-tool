@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { recordKey, type GachaRecord } from '@/domain/records'
-import { poolCategory } from '@/domain/pools'
+import { poolCategory, poolLabel } from '@/domain/pools'
 import { rosterCards, rosterSummary, type RosterCardVM } from '@/domain/roster'
 import { poolStats } from '@/domain/stats'
 import FiveStarCard from './FiveStarCard.vue'
 import FiveStarDetailStrip from './FiveStarDetailStrip.vue'
+import InProgressCard from './InProgressCard.vue'
 
 /**
  * 五星编年史名册(ADR-0007,定稿原型 .roster-head + .roster + .detail-strip):
  * 头部(标题 + 五星计数 + 汇总芯片 + 62 抽期望图例)、时间倒序卡片网格、底部详情条。
+ * 名册首位为虚线「进行中」卡(#10,当前池垫抽数与距必得剩余,该池无记录时不显示)。
  * 当前池由 #09 页签状态给定(App 传入);名册区域内部滚动,主画面布局不随卡数增长。
  */
 const props = defineProps<{
@@ -19,8 +21,16 @@ const props = defineProps<{
   poolCode: number
 }>()
 
-const cards = computed(() => rosterCards(poolStats(props.records, props.poolCode)))
+const stats = computed(() => poolStats(props.records, props.poolCode))
+const cards = computed(() => rosterCards(stats.value))
 const summary = computed(() => rosterSummary(cards.value))
+
+// 进行中卡(#10):该池有任何记录即显示(首位),无记录时让位给名册空态
+const inProgress = computed(() => {
+  const { totalPulls, pity } = stats.value
+  if (totalPulls === 0) return null
+  return { current: pity.current, hard: pity.hard, label: poolLabel(props.poolCode) }
+})
 
 const selectedKey = ref<string | null>(null)
 // 档案/池切换后默认选中最新五星;原选中不在当前列表时同样回落到最新
@@ -88,11 +98,15 @@ const showRefLegend = computed(() => cards.value.some((card) => card.refPercent 
       />62 抽期望（社区口径）</span>
     </div>
     <div
-      v-if="cards.length > 0"
+      v-if="cards.length > 0 || inProgress"
       class="roster"
       role="listbox"
       aria-label="五星名册，按时间倒序"
     >
+      <InProgressCard
+        v-if="inProgress"
+        v-bind="inProgress"
+      />
       <FiveStarCard
         v-for="card in cards"
         :key="recordKey(card.record)"
