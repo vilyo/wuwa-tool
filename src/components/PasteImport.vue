@@ -37,6 +37,13 @@ async function submit(): Promise<void> {
       </button>
     </div>
     <p
+      v-if="store.syncing && store.syncProgress"
+      class="paste-progress"
+      role="status"
+    >
+      正在获取 卡池 {{ store.syncProgress.index }}/{{ store.syncProgress.total }}
+    </p>
+    <p
       v-if="store.message"
       class="paste-message"
       :class="store.message.kind === 'success' ? 'is-success' : 'is-error'"
@@ -105,6 +112,11 @@ async function submit(): Promise<void> {
 .paste-btn:disabled {
   opacity: 0.45;
   cursor: default;
+}
+
+.paste-progress {
+  font-size: 12.5px;
+  color: var(--text-2);
 }
 
 .paste-message {

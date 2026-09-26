@@ -40,24 +40,48 @@ describe('手动粘贴入口', () => {
     mocks.loadRecords.mockResolvedValue([])
   })
 
-  it('粘贴链接点击导入后,显示同步成功消息', async () => {
-    mocks.queryPool.mockResolvedValue(
-      JSON.stringify({
-        code: 0,
-        data: [
-          { cardPoolType: '角色精准调谐', resourceId: 1, qualityLevel: 5, resourceType: '角色', name: '长离', count: 1, time: '2025-05-01 10:00:00' },
-        ],
-      }),
-    )
+  const okOnePool = JSON.stringify({
+    code: 0,
+    data: [
+      { cardPoolType: '角色精准调谐', resourceId: 1, qualityLevel: 5, resourceType: '角色', name: '长离', count: 1, time: '2025-05-01 10:00:00' },
+    ],
+  })
+
+  it('粘贴链接点击导入后,全池串行拉取并显示同步成功消息', async () => {
+    mocks.queryPool.mockResolvedValue(okOnePool)
     mocks.insertRecords.mockResolvedValue(1)
 
     const wrapper = mountCard()
     await submit(wrapper, CN_LINK)
 
-    expect(wrapper.find('.paste-message').text()).toContain('新增 1 条')
-    expect(mocks.insertRecords).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('.paste-message').text()).toContain('新增 13 条')
+    expect(mocks.queryPool).toHaveBeenCalledTimes(13)
+    expect(mocks.insertRecords).toHaveBeenCalledTimes(13)
     // 成功后清空输入
     expect((wrapper.find('textarea').element as HTMLTextAreaElement).value).toBe('')
+  })
+
+  it('同步中显示「正在获取 卡池 x/13」进度行,完成后隐藏并显示结果反馈', async () => {
+    let resolveFirst!: (value: string) => void
+    mocks.queryPool.mockImplementation(
+      () => new Promise<string>((resolve) => { resolveFirst = resolve }),
+    )
+    mocks.insertRecords.mockResolvedValue(1)
+
+    const wrapper = mountCard()
+    await wrapper.find('textarea').setValue(CN_LINK)
+    await wrapper.find('button.paste-btn').trigger('click')
+
+    await vi.waitFor(() => {
+      expect(wrapper.find('.paste-progress').text()).toBe('正在获取 卡池 1/13')
+    })
+
+    resolveFirst(okOnePool)
+    mocks.queryPool.mockResolvedValue(okOnePool)
+    await vi.waitFor(() => {
+      expect(wrapper.find('.paste-progress').exists()).toBe(false)
+      expect(wrapper.find('.paste-message').text()).toContain('新增 13 条')
+    })
   })
 
   it('链接失效时,消息引导重新打开游戏内唤取记录页', async () => {
@@ -70,6 +94,8 @@ describe('手动粘贴入口', () => {
     expect(wrapper.find('.paste-message').classes()).toContain('is-error')
     expect(message).toContain('重新打开')
     expect(message).toContain('唤取记录')
+    // 首池即失效:停止后续池请求
+    expect(mocks.queryPool).toHaveBeenCalledTimes(1)
   })
 
   it('输入为空时导入按钮禁用', () => {

@@ -66,15 +66,14 @@ function cardPoolIdFromLink(link: ParsedGachaLink): number | null {
 }
 
 /**
- * 单池曳光弹:链接参数 → 单池一次请求(全量、时间倒序、无分页)→ 合并去重 → 事务入库。
- * 限速与重试在前端完成,Rust 侧只发一次(D1)。
+ * 按给定池 code 拉取单池:链接参数 → 一次请求(全量、时间倒序、无分页)→ 合并去重 → 事务入库。
+ * 限速与重试在前端完成,Rust 侧只发一次(D1);单池曳光弹与全池编排(syncAll)共用。
  */
-export async function syncPool(link: ParsedGachaLink, deps: SyncDeps): Promise<SyncPoolResult> {
-  const poolCode = Number(link.gachaType)
-  if (!Number.isInteger(poolCode) || poolCode <= 0) {
-    throw new LinkParseError(`链接的 gacha_type 参数不合法:${link.gachaType}`)
-  }
-
+export async function syncPoolCode(
+  link: ParsedGachaLink,
+  poolCode: number,
+  deps: SyncDeps,
+): Promise<SyncPoolResult> {
   const request: PoolQueryRequest = {
     region: link.region,
     playerId: link.playerId,
@@ -98,4 +97,13 @@ export async function syncPool(link: ParsedGachaLink, deps: SyncDeps): Promise<S
     await deps.storage.insertRecords(link.playerId, added)
   }
   return { poolCode, fetched: incoming.length, added: added.length, total: records.length }
+}
+
+/** 单池曳光弹:池 code 取链接的 gacha_type 参数 */
+export async function syncPool(link: ParsedGachaLink, deps: SyncDeps): Promise<SyncPoolResult> {
+  const poolCode = Number(link.gachaType)
+  if (!Number.isInteger(poolCode) || poolCode <= 0) {
+    throw new LinkParseError(`链接的 gacha_type 参数不合法:${link.gachaType}`)
+  }
+  return syncPoolCode(link, poolCode, deps)
 }
