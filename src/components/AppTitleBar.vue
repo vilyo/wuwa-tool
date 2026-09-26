@@ -1,9 +1,18 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import { useRecordsStore } from '@/stores/records'
 import { useThemeStore } from '@/stores/theme'
 
 const theme = useThemeStore()
+const recordsStore = useRecordsStore()
 const appWindow = getCurrentWindow()
+/** 探测/提取与全池拉取期间入口不可用 */
+const busy = computed(() => recordsStore.probing || recordsStore.syncing)
+
+async function quickSync(): Promise<void> {
+  await recordsStore.oneClickSync()
+}
 </script>
 
 <template>
@@ -26,12 +35,14 @@ const appWindow = getCurrentWindow()
       class="titlebar-spacer"
       data-tauri-drag-region
     />
-    <!-- 占位入口:一键同步 #03 / 记录 #11 / 设置 #12 接线 -->
+    <!-- 记录 #11 / 设置 #12 仍为占位入口 -->
     <button
       type="button"
       class="tbtn gold"
+      :disabled="busy"
+      @click="quickSync"
     >
-      <span>一键同步</span>
+      <span>{{ busy ? '获取中…' : '一键获取' }}</span>
     </button>
     <button
       type="button"
@@ -193,6 +204,11 @@ const appWindow = getCurrentWindow()
 /* 按压态缩放不得丢失斜切(形状母语) */
 .tbtn.gold:active {
   transform: skewX(var(--skew)) scale(0.97);
+}
+
+.tbtn.gold:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .win-ctl {

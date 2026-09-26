@@ -7,6 +7,9 @@ const mocks = vi.hoisted(() => ({
   loadRecords: vi.fn(),
   insertRecords: vi.fn(),
   listArchives: vi.fn(),
+  probeGameDir: vi.fn(),
+  extractLinks: vi.fn(),
+  pickGameDirectory: vi.fn(),
 }))
 
 vi.mock('@/services/tauriPorts', () => ({
@@ -14,9 +17,12 @@ vi.mock('@/services/tauriPorts', () => ({
   tauriStorage: { loadRecords: mocks.loadRecords, insertRecords: mocks.insertRecords },
   realClock: { now: () => 0, sleep: vi.fn() },
   listArchives: mocks.listArchives,
+  tauriDirProbe: { probeGameDir: mocks.probeGameDir, extractLinks: mocks.extractLinks },
+  pickGameDirectory: mocks.pickGameDirectory,
 }))
 
 import PasteImport from './PasteImport.vue'
+import { useRecordsStore } from '@/stores/records'
 
 const CN_LINK =
   'https://aki-gm-resources.aki-game.com/aki/gacha/index.html#/record?svr_id=76402e5b&player_id=106485288&lang=zh-Hans&gacha_id=100074&gacha_type=1&svr_area=cn&record_id=acdf99a1&resources_id=c9fbcd24&platform=PC'
@@ -37,6 +43,7 @@ describe('手动粘贴入口', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    localStorage.clear()
     mocks.loadRecords.mockResolvedValue([])
   })
 
@@ -102,5 +109,22 @@ describe('手动粘贴入口', () => {
     const wrapper = mountCard()
 
     expect((wrapper.find('button.paste-btn').element as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('一键获取探测期间(probing)导入禁用并显示「获取中」,点击不触发导入', async () => {
+    // 一键获取探测/弹选择器期间 probing=true、syncing=false,此时粘贴导入须被门闩拦下
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    useRecordsStore().probing = true
+
+    const wrapper = mount(PasteImport, { global: { plugins: [pinia] } })
+    await wrapper.find('textarea').setValue(CN_LINK)
+    await wrapper.find('button.paste-btn').trigger('click')
+
+    expect((wrapper.find('button.paste-btn').element as HTMLButtonElement).disabled).toBe(true)
+    expect(wrapper.find('button.paste-btn').text()).toContain('获取中')
+    expect(mocks.queryPool).not.toHaveBeenCalled()
+    // 失败不清空输入,便于门闩解除后重试
+    expect((wrapper.find('textarea').element as HTMLTextAreaElement).value).toBe(CN_LINK)
   })
 })

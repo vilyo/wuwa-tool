@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
 import { DomainError, NetworkError } from '@/domain/errors'
+import type { DirProbePort, DirProbeReport, LogProbeResult } from '@/domain/probe'
 import type { ClockPort, GachaApiPort, PoolQueryRequest, StoragePort } from '@/domain/ports'
 import type { GachaRecord } from '@/domain/records'
 
@@ -50,6 +51,27 @@ export const tauriStorage: StoragePort = {
 export const realClock: ClockPort = {
   now: () => Date.now(),
   sleep: (ms: number) => new Promise((resolve) => setTimeout(resolve, ms)),
+}
+
+/** 经 Rust probe 命令做目录探测与日志提取(共享读、XOR 双路径、多 UID 归并在 Rust) */
+export const tauriDirProbe: DirProbePort = {
+  probeGameDir(manualDir: string | null): Promise<DirProbeReport> {
+    return invoke<DirProbeReport>('probe_game_dir', { manualDir })
+  },
+  extractLinks(gameDir: string): Promise<LogProbeResult> {
+    return invoke<LogProbeResult>('extract_gacha_links', { gameDir })
+  },
+}
+
+/** 手动指定游戏目录:系统文件夹选择器(tauri-plugin-dialog),取消返回 null */
+export async function pickGameDirectory(): Promise<string | null> {
+  const { open } = await import('@tauri-apps/plugin-dialog')
+  const selected = await open({
+    directory: true,
+    multiple: false,
+    title: '选择游戏安装目录(含 Client 文件夹)',
+  })
+  return typeof selected === 'string' ? selected : null
 }
 
 /** 档案列表(按最近更新倒序),用于启动时恢复最近档案 */

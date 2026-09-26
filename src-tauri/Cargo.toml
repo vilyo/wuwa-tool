@@ -22,3 +22,9 @@ tauri = { version = "2", features = [] }
 # rustls-tls:避免 OpenSSL 依赖(ADR-0001 Rust 面最小化,跨平台构建友好)
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
+# 手动指定游戏目录的系统文件夹选择器(#04)
+tauri-plugin-dialog = "2"
+
+[target.'cfg(windows)'.dependencies]
+# Windows 专属探测源:注册表 Uninstall / MuiCache / 防火墙规则(#04,winprobe.rs)
+winreg = "0.55"

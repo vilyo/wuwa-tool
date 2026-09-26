@@ -1,13 +1,20 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRecordsStore } from '@/stores/records'
 
 const store = useRecordsStore()
 const link = ref('')
+/** 一键获取的探测/提取期间(probing)与全池同步期间(syncing)都不可导入,避免管线互相踩踏 */
+const busy = computed(() => store.syncing || store.probing)
+const buttonLabel = computed(() => {
+  if (store.syncing) return '同步中…'
+  if (store.probing) return '获取中…'
+  return '导入'
+})
 
 async function submit(): Promise<void> {
   const raw = link.value.trim()
-  if (!raw || store.syncing) return
+  if (!raw || busy.value) return
   const ok = await store.importLink(raw)
   // 成功后清空输入便于再次粘贴;失败保留便于修改重试
   if (ok) link.value = ''
@@ -30,10 +37,10 @@ async function submit(): Promise<void> {
       <button
         type="button"
         class="paste-btn"
-        :disabled="store.syncing || !link.trim()"
+        :disabled="busy || !link.trim()"
         @click="submit"
       >
-        <span>{{ store.syncing ? '同步中…' : '导入' }}</span>
+        <span>{{ buttonLabel }}</span>
       </button>
     </div>
     <p

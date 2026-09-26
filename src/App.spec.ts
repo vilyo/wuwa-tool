@@ -21,11 +21,11 @@ function mountApp() {
 }
 
 describe('应用壳(冒烟)', () => {
-  it('渲染顶栏品牌与三个占位入口', () => {
+  it('渲染顶栏品牌与入口(一键获取已接线)', () => {
     const wrapper = mountApp()
 
     expect(wrapper.find('.brand-name').text()).toBe('鸣潮工具箱')
-    expect(wrapper.text()).toContain('一键同步')
+    expect(wrapper.text()).toContain('一键获取')
     expect(wrapper.text()).toContain('记录')
     expect(wrapper.find('button[aria-label="打开设置"]').exists()).toBe(true)
   })
@@ -34,7 +34,7 @@ describe('应用壳(冒烟)', () => {
     const wrapper = mountApp()
 
     expect(wrapper.find('.empty-title').text()).toBe('尚无唤取档案')
-    expect(wrapper.find('.empty-hint').text()).toContain('一键同步')
+    expect(wrapper.find('.empty-hint').text()).toContain('一键获取')
   })
 
   it('状态栏常驻显示延迟提示、6 个月窗口、隐私声明与版本号', () => {

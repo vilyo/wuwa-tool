@@ -1,13 +1,40 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { parseGachaLink, type ParsedGachaLink } from '@/domain/link'
+import { diagnosisGuidance, pickLatestLink, type ExtractedLink } from '@/domain/probe'
 import type { GachaRecord } from '@/domain/records'
 import type { SyncDeps } from '@/domain/syncPool'
 import { syncAll, type SyncAllProgress } from '@/domain/syncAll'
-import { listArchives, realClock, tauriGachaApi, tauriStorage } from '@/services/tauriPorts'
+import {
+  listArchives,
+  pickGameDirectory,
+  realClock,
+  tauriDirProbe,
+  tauriGachaApi,
+  tauriStorage,
+} from '@/services/tauriPorts'
 
 function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+/** 手动指定的游戏目录记在本地存储(#13 会统一管理偏好,V1 先行假设) */
+const GAME_DIR_STORAGE_KEY = 'wuwatool.gameDir'
+
+function rememberedGameDir(): string | null {
+  try {
+    return localStorage.getItem(GAME_DIR_STORAGE_KEY)
+  } catch {
+    return null
+  }
+}
+
+function rememberGameDir(dir: string): void {
+  try {
+    localStorage.setItem(GAME_DIR_STORAGE_KEY, dir)
+  } catch {
+    // 存储不可用时跳过记忆,不影响本次同步
+  }
 }
 
 export interface StoreMessage {
@@ -27,6 +54,10 @@ export const useRecordsStore = defineStore('records', () => {
   const syncing = ref(false)
   /** 全池同步进度(「正在获取 卡池 x/13」),非同步期为 null */
   const syncProgress = ref<SyncAllProgress | null>(null)
+  /** 一键获取的探测/提取阶段(读日志与目录探测,先于全池拉取) */
+  const probing = ref(false)
+  /** 本次一键获取检测到的全部 UID(多 UID 选择 UI 在 #05) */
+  const detectedUids = ref<ExtractedLink['playerId'][]>([])
   const message = ref<StoreMessage | null>(null)
 
   async function loadPlayer(playerIdToLoad: string): Promise<void> {
@@ -82,5 +113,73 @@ export const useRecordsStore = defineStore('records', () => {
     return ok
   }
 
-  return { records, playerId, syncing, syncProgress, message, init, importLink }
+  /** 从已确认的游戏目录提取链接并进入全池管线;成功后在结果中注明检测到的 UID 列表 */
+  async function syncFromGameDir(gameDir: string): Promise<boolean> {
+    const result = await tauriDirProbe.extractLinks(gameDir)
+    if (result.links.length === 0) {
+      message.value = { kind: 'error', text: diagnosisGuidance(result.diagnosis ?? 'no-link') }
+      return false
+    }
+    const latest = pickLatestLink(result.links)
+    if (latest === null) return false
+    detectedUids.value = result.links.map((link) => link.playerId)
+    const ok = await importLink(latest.url)
+    if (ok) {
+      const base = message.value
+      const uids = detectedUids.value
+      const note =
+        uids.length > 1
+          ? `检测到 ${uids.length} 个 UID(${uids.join('、')}),已导入最新链接所属的 UID ${latest.playerId}。`
+          : `检测到 UID ${uids[0]}。`
+      if (base) message.value = { kind: 'success', text: `${base.text}${note}` }
+    }
+    return ok
+  }
+
+  /** 一键获取:目录探测 → 日志提取 → 最新链接直接走 importLink 全池管线。
+   *  探测不到目录时弹文件夹选择器手动指定并记住(选择无效则给出具体指引) */
+  async function oneClickSync(): Promise<boolean> {
+    if (syncing.value || probing.value) return false
+    probing.value = true
+    message.value = null
+    detectedUids.value = []
+    try {
+      let report = await tauriDirProbe.probeGameDir(rememberedGameDir())
+      if (report.candidates.length === 0) {
+        message.value = { kind: 'error', text: diagnosisGuidance('no-game-dir') }
+        const picked = await pickGameDirectory()
+        if (picked === null) return false
+        report = await tauriDirProbe.probeGameDir(picked)
+        const manual = report.candidates.find((candidate) => candidate.source === 'manual')
+        if (!manual) {
+          message.value = {
+            kind: 'error',
+            text: '所选目录未找到 Client 文件夹,请选择游戏安装根目录(含 Client 文件夹)后重试。',
+          }
+          return false
+        }
+        rememberGameDir(picked)
+        return await syncFromGameDir(manual.path)
+      }
+      return await syncFromGameDir(report.candidates[0]!.path)
+    } catch (error) {
+      message.value = { kind: 'error', text: `一键获取失败:${errorText(error)}` }
+      return false
+    } finally {
+      probing.value = false
+    }
+  }
+
+  return {
+    records,
+    playerId,
+    syncing,
+    syncProgress,
+    probing,
+    detectedUids,
+    message,
+    init,
+    importLink,
+    oneClickSync,
+  }
 })
