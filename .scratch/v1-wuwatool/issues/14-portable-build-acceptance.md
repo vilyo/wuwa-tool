@@ -21,3 +21,7 @@
 ---
 
 来源：spec「Implementation Decisions · 架构与技术栈（发布形态）」「Testing Decisions 4」；PRD §11 DoD；ADR-0008。
+
+## Comments
+
+- 2026-09-26（无人值守批量开发，主编记录）：本机为 macOS，Windows 便携版构建与真机验收无法执行，按用户指示跳过并交付教程 `docs/BUILD-WINDOWS.md`（构建环境、便携 zip 组装、ADR-0008 数据目录说明、15 项真机验收清单、常见问题）。macOS 侧可验证项已完成：`npm run build`（vue-tsc）通过、依赖与打包配置就绪（bundle.targets=[] 即便携形态）。Windows 构建产物体积 ≤15MB、真机 DoD 验收需人工在 Windows 机按教程执行，完成后回灌新票。

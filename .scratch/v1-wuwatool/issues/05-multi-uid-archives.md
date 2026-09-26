@@ -4,7 +4,7 @@
 
 **Blocked by:** 04 目录探测与一键同步（多 UID 信息来自日志提取）。
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
 - [ ] 一份日志含多个 UID 的抽卡链接时，展示 UID 列表由用户选择导入，不静默取其一
 - [ ] 检测到与当前档案不同的 UID：弹切换确认；确认后旧档案只读保留，两号记录互不污染

@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 应用骨架与设计基底（构建与打包约定）。
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
 - [ ] 头像与武器图标自 ryanbenson/wuthering-waves-assets 构建期打包（ADR-0005），许可文件随附；仅面向离线使用
 - [ ] `resourceId → 文件名` 映射表建立并在运行时加载；缺图回退：属性色菱形 + 名字首字字牌

@@ -4,7 +4,7 @@
 
 **Blocked by:** 02 粘贴链接导入端到端（有数据可备份）。
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
 - [ ] 设置弹窗打开/关闭：焦点往返、ESC 关闭
 - [ ] 导出全部记录为 JSON 文件

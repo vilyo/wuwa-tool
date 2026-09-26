@@ -4,7 +4,7 @@
 
 **Blocked by:** 03 全池同步编排与进度。
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
 - [ ] 目录探测按优先级：注册表 Uninstall 项 → MuiCache → 防火墙规则 → Xbox `.GamingRoot` → 常见路径扫描（官方启动器 / WeGame / Steam / Epic）→ 手动指定（记住选择）；设置中可重新探测（入口在 #13 开放）
 - [ ] 同时读取 `Client\Logs\Client.log` 与 KRSDK WebView `debug.log` 两处日志；游戏运行中以共享读成功读取（处理只读 ACL）

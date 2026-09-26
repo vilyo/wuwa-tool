@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 应用骨架与设计基底。
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
 - [ ] 粘贴完整唤取 URL 后解析出全部 9 个参数；按 URL host 或 svr_area 判定国服/国际服
 - [ ] 经 Rust 侧带自定义 Referer 的请求按卡池拉取全量历史（无分页、时间倒序）；禁止按 API 返回的中文池名做字符串匹配
