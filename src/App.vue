@@ -3,6 +3,7 @@ import { onMounted } from 'vue'
 import AppStatusBar from '@/components/AppStatusBar.vue'
 import AppTitleBar from '@/components/AppTitleBar.vue'
 import ArchiveListDialog from '@/components/ArchiveListDialog.vue'
+import FiveStarRoster from '@/components/FiveStarRoster.vue'
 import PasteImport from '@/components/PasteImport.vue'
 import PoolVerdictLine from '@/components/PoolVerdictLine.vue'
 import RecordList from '@/components/RecordList.vue'
@@ -42,7 +43,12 @@ onMounted(() => {
       <template v-else>
         <!-- 本池评语行(#07):V1 默认角色精准调谐池,页签联动由 #09 接管 -->
         <PoolVerdictLine :records="recordsStore.records" />
-        <RecordList :records="recordsStore.records" />
+        <!-- 五星编年史名册(#08):名册区域内部滚动 -->
+        <FiveStarRoster :records="recordsStore.records" />
+        <!-- 极简流水(#02 过渡件):正式流水抽屉在 #11,暂以限高滚动收纳在名册下方 -->
+        <div class="record-list-wrap">
+          <RecordList :records="recordsStore.records" />
+        </div>
       </template>
     </main>
     <AppStatusBar />
@@ -68,6 +74,14 @@ onMounted(() => {
   flex-direction: column;
   gap: 18px;
   padding: 24px;
+  /* 不整体滚动:名册(flex:1)内部滚动,流水过渡件限高滚动 */
+  overflow: hidden;
+}
+
+/* 极简流水过渡件(#02):限高内部滚动,待 #11 流水抽屉替换后移除 */
+.record-list-wrap {
+  flex: none;
+  max-height: 200px;
   overflow-y: auto;
 }
 
