@@ -2,8 +2,11 @@
 import { onMounted } from 'vue'
 import AppStatusBar from '@/components/AppStatusBar.vue'
 import AppTitleBar from '@/components/AppTitleBar.vue'
+import ArchiveListDialog from '@/components/ArchiveListDialog.vue'
 import PasteImport from '@/components/PasteImport.vue'
 import RecordList from '@/components/RecordList.vue'
+import SwitchConfirmDialog from '@/components/SwitchConfirmDialog.vue'
+import UidSelectDialog from '@/components/UidSelectDialog.vue'
 import { useRecordsStore } from '@/stores/records'
 
 const recordsStore = useRecordsStore()
@@ -41,6 +44,10 @@ onMounted(() => {
       />
     </main>
     <AppStatusBar />
+    <!-- 多 UID 选择 / 切换确认 / 档案列表(#05):无待办状态时不渲染 -->
+    <UidSelectDialog />
+    <SwitchConfirmDialog />
+    <ArchiveListDialog />
   </div>
 </template>
 

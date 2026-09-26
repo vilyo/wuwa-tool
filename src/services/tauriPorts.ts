@@ -1,16 +1,12 @@
 import { invoke } from '@tauri-apps/api/core'
+import type { ArchiveSummary } from '@/domain/archives'
 import { DomainError, NetworkError } from '@/domain/errors'
 import type { DirProbePort, DirProbeReport, LogProbeResult } from '@/domain/probe'
 import type { ClockPort, GachaApiPort, PoolQueryRequest, StoragePort } from '@/domain/ports'
 import type { GachaRecord } from '@/domain/records'
 
-/** Rust db_list_archives 的行结构 */
-export interface ArchiveSummary {
-  playerId: string
-  count: number
-  firstTime: string | null
-  lastTime: string | null
-}
+/** Rust db_list_archives 的行结构(类型定义在 domain/archives,此处再导出保持旧引用可用) */
+export type { ArchiveSummary }
 
 /**
  * gacha_query 的拒绝值:Rust GachaCommandError 序列化结果 {kind, message}。

@@ -35,6 +35,19 @@ async function quickSync(): Promise<void> {
       class="titlebar-spacer"
       data-tauri-drag-region
     />
+    <!-- 当前档案 UID 入口(#05 最小切换入口):点击弹出档案列表切换;多档案并行展示明确不做 -->
+    <button
+      v-if="recordsStore.playerId"
+      type="button"
+      class="tbtn uid-chip"
+      aria-label="切换档案"
+      title="切换档案"
+      :disabled="busy"
+      @click="recordsStore.openArchiveList()"
+    >
+      <span>UID</span>
+      <span class="uid-num">{{ recordsStore.playerId }}</span>
+    </button>
     <!-- 记录 #11 / 设置 #12 仍为占位入口 -->
     <button
       type="button"
@@ -207,6 +220,21 @@ async function quickSync(): Promise<void> {
 }
 
 .tbtn.gold:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.uid-chip {
+  font-family: var(--font-num);
+  letter-spacing: 0.04em;
+}
+
+.uid-chip .uid-num {
+  font-weight: 600;
+  font-size: 13.5px;
+}
+
+.uid-chip:disabled {
   opacity: 0.5;
   cursor: default;
 }

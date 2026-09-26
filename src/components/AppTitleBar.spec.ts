@@ -1,5 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
@@ -30,13 +31,17 @@ vi.mock('@tauri-apps/api/window', () => ({
 }))
 
 import AppTitleBar from './AppTitleBar.vue'
+import { useRecordsStore } from '@/stores/records'
 
 const GAME_DIR = 'C:\\Wuthering Waves Game'
 const CN_URL =
   'https://aki-gm-resources.aki-game.com/aki/gacha/index.html#/record?svr_id=76402e5b&player_id=106485288&lang=zh-Hans&gacha_id=100074&gacha_type=1&svr_area=cn&record_id=acdf99a1&resources_id=c9fbcd24&platform=PC'
 
 function mountBar() {
-  return mount(AppTitleBar, { global: { plugins: [createPinia()] } })
+  // 同一个 pinia 实例既激活又挂载,需要时测试里可直接取 store 造状态
+  const pinia = createPinia()
+  setActivePinia(pinia)
+  return mount(AppTitleBar, { global: { plugins: [pinia] } })
 }
 
 describe('顶栏一键获取入口', () => {
@@ -111,5 +116,45 @@ describe('顶栏一键获取入口', () => {
       expect(wrapper.find('button.tbtn.gold').text()).toContain('获取中…')
       expect((wrapper.find('button.tbtn.gold').element as HTMLButtonElement).disabled).toBe(true)
     })
+  })
+})
+
+describe('顶栏当前档案 UID 入口(#05)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    localStorage.clear()
+    mocks.loadRecords.mockResolvedValue([])
+    mocks.listArchives.mockResolvedValue([])
+  })
+
+  it('尚无档案时不显示 UID 入口', () => {
+    const wrapper = mountBar()
+
+    expect(wrapper.find('button[aria-label="切换档案"]').exists()).toBe(false)
+  })
+
+  it('展示当前档案 UID,点击打开档案列表', async () => {
+    const wrapper = mountBar()
+    useRecordsStore().playerId = '106485288'
+    await nextTick()
+
+    const chip = wrapper.find('button[aria-label="切换档案"]')
+    expect(chip.exists()).toBe(true)
+    expect(chip.text()).toContain('UID')
+    expect(chip.text()).toContain('106485288')
+
+    await chip.trigger('click')
+    expect(useRecordsStore().archiveListOpen).toBe(true)
+  })
+
+  it('获取/同步期间 UID 入口禁用,避免同步中途切换档案', async () => {
+    const wrapper = mountBar()
+    const store = useRecordsStore()
+    store.playerId = '106485288'
+    store.probing = true
+    await nextTick()
+
+    expect((wrapper.find('button[aria-label="切换档案"]').element as HTMLButtonElement).disabled).toBe(true)
   })
 })
