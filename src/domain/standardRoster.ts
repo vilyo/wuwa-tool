@@ -11,7 +11,7 @@
 import type { GachaRecord } from './records'
 import { normNameKey } from './avatars'
 
-/** 常驻名单条目:名称双语对照;resourceId 仅在来源可靠时填(当前社区无可靠对应数据) */
+/** 常驻名单条目:物品资源 ID + 名称双语对照(来源见 STANDARD_ROSTER 注) */
 export interface StandardRosterEntry {
   /** 官方物品资源 ID(数字字符串)。判定时 resourceId 精确比对优先 */
   resourceId?: string
@@ -28,25 +28,25 @@ export interface StandardRosterEntry {
  *
  * - 角色 6 名:维里奈/安可/卡卡罗/凌阳/鉴心(开服常驻)+ 相里要(官方后续并入;
  *   定稿原型 BASE_CHAR/SIM_POOL.standard 名单即按此六人标注「歪 · 常驻名单」)。
- *   中英文名为社区通识对照。
  * - 武器 5 把:开服常驻五星武器,中英文对照经 wuthering.gg 武器库
  *   slug 核对(emerald-of-genesis / lustrous-razor / static-mist / abyss-surges /
  *   cosmic-ripples ↔ 千古洑流/浩境粼光/停驻之烟/漪澜浮录/擎渊怒涛)。
- * - resourceId 字段:社区开源素材仓库不含 resourceId↔名称数据(2026-09-26 查证),
- *   为避免错误数据污染判定,暂不填;官方/可靠社区数据可得后补录。
+ * - resourceId:Encore API(api-v2.encore.moe)游戏数据快照(2026-09-27 查证),
+ *   与抽卡记录 resourceId 同为游戏物品 Id(样本 21010043「远行者长刃·辟路」交叉验证),
+ *   详见 src/domain/avatars.ts 头注。
  */
 export const STANDARD_ROSTER: readonly StandardRosterEntry[] = [
-  { zh: '维里奈', en: 'Verina', kind: 'resonator' },
-  { zh: '安可', en: 'Encore', kind: 'resonator' },
-  { zh: '卡卡罗', en: 'Calcharo', kind: 'resonator' },
-  { zh: '凌阳', en: 'Lingyang', kind: 'resonator' },
-  { zh: '鉴心', en: 'Jianxin', kind: 'resonator' },
-  { zh: '相里要', en: 'Xiangli Yao', kind: 'resonator' },
-  { zh: '千古洑流', en: 'Emerald of Genesis', kind: 'weapon' },
-  { zh: '浩境粼光', en: 'Lustrous Razor', kind: 'weapon' },
-  { zh: '停驻之烟', en: 'Static Mist', kind: 'weapon' },
-  { zh: '擎渊怒涛', en: 'Abyss Surges', kind: 'weapon' },
-  { zh: '漪澜浮录', en: 'Cosmic Ripples', kind: 'weapon' },
+  { resourceId: '1503', zh: '维里奈', en: 'Verina', kind: 'resonator' },
+  { resourceId: '1203', zh: '安可', en: 'Encore', kind: 'resonator' },
+  { resourceId: '1301', zh: '卡卡罗', en: 'Calcharo', kind: 'resonator' },
+  { resourceId: '1104', zh: '凌阳', en: 'Lingyang', kind: 'resonator' },
+  { resourceId: '1405', zh: '鉴心', en: 'Jianxin', kind: 'resonator' },
+  { resourceId: '1305', zh: '相里要', en: 'Xiangli Yao', kind: 'resonator' },
+  { resourceId: '21020015', zh: '千古洑流', en: 'Emerald of Genesis', kind: 'weapon' },
+  { resourceId: '21010015', zh: '浩境粼光', en: 'Lustrous Razor', kind: 'weapon' },
+  { resourceId: '21030015', zh: '停驻之烟', en: 'Static Mist', kind: 'weapon' },
+  { resourceId: '21040015', zh: '擎渊怒涛', en: 'Abyss Surges', kind: 'weapon' },
+  { resourceId: '21050015', zh: '漪澜浮录', en: 'Cosmic Ripples', kind: 'weapon' },
 ]
 
 /** 判定结论:名单内 = true(歪)/ 名单外 = false(当期 UP)/ 无法识别 = 'unknown' */

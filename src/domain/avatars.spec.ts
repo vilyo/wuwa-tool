@@ -54,6 +54,41 @@ describe('头像资产映射(resourceId → 文件名,ADR-0005)', () => {
     }
     expect(mapped.size).toBe(Object.keys(ROSTER_FILES).length)
   })
+
+  it('随包全量映射表:每条 resourceId / 中文名 / 英文名均可各自解析到同一条目', () => {
+    for (const entry of AVATAR_ASSET_ENTRIES) {
+      const byId = resolveAvatarUrl({ resourceId: entry.resourceId, name: '' })
+      expect(byId, `resourceId 解析失败: ${entry.resourceId}`).toMatch(
+        new RegExp(`${entry.file.replace('.', '\\.')}$`),
+      )
+      const byZh = resolveAvatarUrl({ resourceId: '', name: entry.zh })
+      expect(byZh, `中文名解析失败: ${entry.zh}`).toBe(byId)
+      const byEn = resolveAvatarUrl({ resourceId: '', name: entry.en })
+      expect(byEn, `英文名解析失败: ${entry.en}`).toBe(byId)
+    }
+  })
+
+  it('随包映射表无重复键(resourceId / 归一化名称均唯一,防串图)', () => {
+    const ids = AVATAR_ASSET_ENTRIES.map((e) => e.resourceId)
+    const names = AVATAR_ASSET_ENTRIES.flatMap((e) => [
+      normNameKey(e.en),
+      normNameKey(e.zh),
+    ])
+    expect(new Set(ids).size).toBe(ids.length)
+    expect(new Set(names).size).toBe(names.length)
+  })
+
+  it('已知图源缺口走回退字牌:沉冥 / 玉阙玄华(2026-09-27 各源均无图)', () => {
+    expect(resolveAvatarUrl({ resourceId: '21020107', name: '' })).toBeNull()
+    expect(resolveAvatarUrl({ resourceId: '', name: '沉冥' })).toBeNull()
+    expect(resolveAvatarUrl({ resourceId: '21050116', name: '' })).toBeNull()
+    expect(resolveAvatarUrl({ resourceId: '', name: '玉阙玄华' })).toBeNull()
+  })
+
+  it('不可抽取的漂泊者不收录(不会出现在唤取记录中)', () => {
+    expect(resolveAvatarUrl({ resourceId: '', name: '漂泊者·湮灭' })).toBeNull()
+    expect(resolveAvatarUrl({ resourceId: '1604', name: '' })).toBeNull()
+  })
 })
 
 describe('属性色(定稿原型 EL 色标,未知回退组件默认)', () => {

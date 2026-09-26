@@ -58,9 +58,10 @@ describe('名册网格:时间倒序与卡片内容', () => {
     expect(tiles[0]!.find('.ft-name').text()).toBe('忌炎')
 
     const card = tiles[0]!
-    // 忌炎无打包资产 → 缺图回退首字字牌
-    expect(card.find('img').exists()).toBe(false)
-    expect(card.find('.avatar-fb').text()).toBe('忌')
+    // 忌炎在打包名单内(记录无 resourceId,按名称兜底)→ 显示头像图
+    // (字牌 .avatar-fb 常驻底层,有图时被 img 覆盖,故不断言其不存在)
+    expect(card.find('img').exists()).toBe(true)
+    expect(card.find('img').attributes('src')).toMatch(/Jiyan\.png$/)
     // 记录无属性数据,小标展示 resourceType(角色/武器)
     expect(card.find('.ft-el').text()).toBe('角色')
     expect(card.find('.ft-pulls b').text()).toBe('10')
@@ -73,6 +74,12 @@ describe('名册网格:时间倒序与卡片内容', () => {
   it('打包名单内的物品显示头像图', () => {
     const wrapper = mountRoster(history([[9, '卡卡罗']]))
     expect(wrapper.find('.ftile img').exists()).toBe(true)
+  })
+
+  it('无资产可查的物品回退首字字牌(缺图不报错)', () => {
+    const wrapper = mountRoster(history([[9, '未知五星']]))
+    expect(wrapper.find('.ftile img').exists()).toBe(false)
+    expect(wrapper.find('.ftile .avatar-fb').text()).toBe('未')
   })
 })
 
