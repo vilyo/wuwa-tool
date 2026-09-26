@@ -9,7 +9,7 @@ import PasteImport from '@/components/PasteImport.vue'
 import PityLinesPanel from '@/components/PityLinesPanel.vue'
 import PoolTabBar from '@/components/PoolTabBar.vue'
 import PoolVerdictLine from '@/components/PoolVerdictLine.vue'
-import RecordList from '@/components/RecordList.vue'
+import RecordDrawer from '@/components/RecordDrawer.vue'
 import SwitchConfirmDialog from '@/components/SwitchConfirmDialog.vue'
 import UidSelectDialog from '@/components/UidSelectDialog.vue'
 import { poolTabs } from '@/domain/poolTabs'
@@ -17,6 +17,9 @@ import type { PoolCategory } from '@/domain/pools'
 import { useRecordsStore } from '@/stores/records'
 
 const recordsStore = useRecordsStore()
+
+// 记录抽屉开关(#11):纯 UI 状态,App 本地持有;呼出/关闭入口见 AppTitleBar 的 open-records 事件
+const drawerOpen = ref(false)
 
 // 池页签状态(#09):单画面 UI 状态,App 本地持有,评语行/名册/详情条/汇总行共用一个联动源。
 // 二级选择仅在「该类别实际有数据的 code」中生效,否则回落首个有数据的 code;
@@ -60,7 +63,7 @@ onMounted(() => {
 
 <template>
   <div class="app">
-    <AppTitleBar />
+    <AppTitleBar @open-records="drawerOpen = true" />
     <main class="main-area">
       <PasteImport />
       <section
@@ -88,7 +91,7 @@ onMounted(() => {
           @select-category="selectCategory"
           @select-pool="selectPool"
         />
-        <!-- 主区两栏(#10,定稿原型 .work):左 = 评语行 + 名册 + 流水过渡件,右 = 保底引线 + 高光时刻 -->
+        <!-- 主区两栏(#10,定稿原型 .work):左 = 评语行 + 名册,右 = 保底引线 + 高光时刻;全量流水在 #11 抽屉 -->
         <div class="work">
           <section class="col-main">
             <!-- 本池评语行(#07):随页签状态联动 -->
@@ -101,10 +104,6 @@ onMounted(() => {
               :records="recordsStore.records"
               :pool-code="currentPoolCode"
             />
-            <!-- 极简流水(#02 过渡件):正式流水抽屉在 #11,暂以限高滚动收纳在名册下方 -->
-            <div class="record-list-wrap">
-              <RecordList :records="recordsStore.records" />
-            </div>
           </section>
           <aside
             class="rail"
@@ -121,6 +120,12 @@ onMounted(() => {
     <UidSelectDialog />
     <SwitchConfirmDialog />
     <ArchiveListDialog />
+    <!-- 记录抽屉(#11):当前档案全量流水,筛选 + 虚拟滚动,浮层无障碍在组件内闭环 -->
+    <RecordDrawer
+      :open="drawerOpen"
+      :records="recordsStore.records"
+      @close="drawerOpen = false"
+    />
   </div>
 </template>
 
@@ -139,7 +144,7 @@ onMounted(() => {
   flex-direction: column;
   gap: 18px;
   padding: 24px;
-  /* 不整体滚动:名册(flex:1)内部滚动,流水过渡件限高滚动 */
+  /* 不整体滚动:名册(flex:1)内部滚动 */
   overflow: hidden;
 }
 
@@ -187,13 +192,6 @@ onMounted(() => {
   .rail {
     overflow: visible;
   }
-}
-
-/* 极简流水过渡件(#02):限高内部滚动,待 #11 流水抽屉替换后移除 */
-.record-list-wrap {
-  flex: none;
-  max-height: 200px;
-  overflow-y: auto;
 }
 
 .empty-state {

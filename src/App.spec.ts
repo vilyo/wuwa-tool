@@ -295,6 +295,37 @@ describe('右栏:保底引线与高光时刻(#10)', () => {
   })
 })
 
+describe('记录抽屉(#11)', () => {
+  it('顶栏「记录」呼出抽屉:流水行含池名与稀有度;ESC 关闭', async () => {
+    const wrapper = mountApp([
+      record({ name: '垫', time: '2025-05-01 09:59:00' }),
+      record({ name: '忌炎', qualityLevel: 5, resourceType: '角色' }),
+    ])
+
+    expect(wrapper.find('.drawer').exists()).toBe(false)
+    const button = wrapper.findAll('button').find((b) => b.text().includes('记录'))!
+    await button.trigger('click')
+
+    const drawer = wrapper.find('.drawer')
+    expect(drawer.attributes('role')).toBe('dialog')
+    expect(drawer.attributes('aria-modal')).toBe('true')
+    const rows = wrapper.findAll('.rec-row')
+    expect(rows).toHaveLength(2)
+    expect(wrapper.find('.rec-count').text()).toBe('共 2 条')
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await nextTick()
+    expect(wrapper.find('.drawer').exists()).toBe(false)
+  })
+
+  it('旧的全量流水过渡件已移除,主画面不再内联展示流水', () => {
+    const wrapper = mountApp([record()])
+
+    expect(wrapper.find('.record-list').exists()).toBe(false)
+    expect(wrapper.find('.record-list-wrap').exists()).toBe(false)
+  })
+})
+
 describe('主题切换(临时入口,#13 移交设置)', () => {
   it('点击按钮在明暗两套 tokens 间切换,明色为默认', async () => {
     const wrapper = mountApp()

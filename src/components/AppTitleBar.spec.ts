@@ -119,6 +119,24 @@ describe('顶栏一键获取入口', () => {
   })
 })
 
+describe('顶栏「记录」抽屉入口(#11)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+  })
+
+  it('「记录」按钮带 aria 标注,点击向 App 发出 open-records', async () => {
+    const wrapper = mountBar()
+
+    const button = wrapper.findAll('button').find((b) => b.text().includes('记录'))!
+    expect(button.attributes('aria-label')).toBe('打开唤取记录')
+
+    await button.trigger('click')
+
+    expect(wrapper.emitted('open-records')).toHaveLength(1)
+  })
+})
+
 describe('顶栏当前档案 UID 入口(#05)', () => {
   beforeEach(() => {
     setActivePinia(createPinia())

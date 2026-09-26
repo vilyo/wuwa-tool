@@ -4,6 +4,8 @@ import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useRecordsStore } from '@/stores/records'
 import { useThemeStore } from '@/stores/theme'
 
+const emit = defineEmits<{ 'open-records': [] }>()
+
 const theme = useThemeStore()
 const recordsStore = useRecordsStore()
 const appWindow = getCurrentWindow()
@@ -48,7 +50,7 @@ async function quickSync(): Promise<void> {
       <span>UID</span>
       <span class="uid-num">{{ recordsStore.playerId }}</span>
     </button>
-    <!-- 记录 #11 / 设置 #12 仍为占位入口 -->
+    <!-- 设置 #12 仍为占位入口(记录入口已在 #11 接线) -->
     <button
       type="button"
       class="tbtn gold"
@@ -57,9 +59,12 @@ async function quickSync(): Promise<void> {
     >
       <span>{{ busy ? '获取中…' : '一键获取' }}</span>
     </button>
+    <!-- 记录抽屉入口(#11):开关状态由 App 持有,点击呼出右侧流水抽屉 -->
     <button
       type="button"
       class="tbtn"
+      aria-label="打开唤取记录"
+      @click="emit('open-records')"
     >
       <svg
         width="13"
