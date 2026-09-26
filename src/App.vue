@@ -4,6 +4,7 @@ import AppStatusBar from '@/components/AppStatusBar.vue'
 import AppTitleBar from '@/components/AppTitleBar.vue'
 import ArchiveListDialog from '@/components/ArchiveListDialog.vue'
 import PasteImport from '@/components/PasteImport.vue'
+import PoolVerdictLine from '@/components/PoolVerdictLine.vue'
 import RecordList from '@/components/RecordList.vue'
 import SwitchConfirmDialog from '@/components/SwitchConfirmDialog.vue'
 import UidSelectDialog from '@/components/UidSelectDialog.vue'
@@ -38,10 +39,11 @@ onMounted(() => {
           在游戏内打开一次「唤取记录」页,然后点击顶栏「一键获取」,即可导入你的唤取记录。
         </p>
       </section>
-      <RecordList
-        v-else
-        :records="recordsStore.records"
-      />
+      <template v-else>
+        <!-- 本池评语行(#07):V1 默认角色精准调谐池,页签联动由 #09 接管 -->
+        <PoolVerdictLine :records="recordsStore.records" />
+        <RecordList :records="recordsStore.records" />
+      </template>
     </main>
     <AppStatusBar />
     <!-- 多 UID 选择 / 切换确认 / 档案列表(#05):无待办状态时不渲染 -->

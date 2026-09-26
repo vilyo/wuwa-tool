@@ -1,6 +1,8 @@
 import { mount } from '@vue/test-utils'
-import { createPinia } from 'pinia'
+import { createPinia, setActivePinia } from 'pinia'
 import { describe, expect, it, vi } from 'vitest'
+import type { GachaRecord } from '@/domain/records'
+import { useRecordsStore } from '@/stores/records'
 import App from './App.vue'
 
 vi.mock('@tauri-apps/api/window', () => ({
@@ -16,8 +18,31 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(async () => []),
 }))
 
-function mountApp() {
-  return mount(App, { global: { plugins: [createPinia()] } })
+function mountApp(seedRecords?: GachaRecord[]) {
+  const pinia = createPinia()
+  setActivePinia(pinia)
+  if (seedRecords) useRecordsStore().records = seedRecords
+  return mount(App, { global: { plugins: [pinia] } })
+}
+
+let seq = 0
+
+function record(overrides: Partial<GachaRecord> = {}): GachaRecord {
+  seq += 1
+  const n = seq % 86400
+  const hh = String(Math.floor(n / 3600)).padStart(2, '0')
+  const mm = String(Math.floor((n % 3600) / 60)).padStart(2, '0')
+  const ss = String(n % 60).padStart(2, '0')
+  return {
+    cardPoolType: 1,
+    cardPoolId: 100074,
+    time: `2025-05-01 ${hh}:${mm}:${ss}`,
+    name: '远行者佩枪·瞭望',
+    qualityLevel: 3,
+    resourceId: '21050001',
+    resourceType: '武器',
+    ...overrides,
+  }
 }
 
 describe('应用壳(冒烟)', () => {
@@ -45,6 +70,31 @@ describe('应用壳(冒烟)', () => {
     expect(bar).toContain('近 6 个月记录')
     expect(bar).toContain('所有数据仅保存在本机')
     expect(bar).toContain(`v${__APP_VERSION__}`)
+  })
+})
+
+describe('本池评语行(#07)', () => {
+  it('档案为空时不渲染评语行(空态覆盖主画面)', () => {
+    const wrapper = mountApp()
+
+    expect(wrapper.find('.verdict-line').exists()).toBe(false)
+    expect(wrapper.find('.empty-title').exists()).toBe(true)
+  })
+
+  it('有档案时评语行上屏:默认角色精准调谐池,评级 + 评语 + 平均出货 + 歪率', () => {
+    // 池 1:40 抽歪(维里奈在常驻名单)+ 40 抽 UP(忌炎)→ 平均 40 → A,歪率 50%
+    const asc: GachaRecord[] = []
+    for (let i = 0; i < 2; i += 1) {
+      for (let j = 0; j < 39; j += 1) asc.push(record())
+      asc.push(record({ name: i === 0 ? '维里奈' : '忌炎', qualityLevel: 5, resourceType: '角色' }))
+    }
+    const wrapper = mountApp([...asc].reverse()) // 库内流水为时间倒序
+
+    const line = wrapper.find('.verdict-line')
+    expect(line.exists()).toBe(true)
+    expect(line.find('.rank-mini').text()).toBe('A')
+    expect(line.find('.vtext').text()).toBe('欧洲常驻居民')
+    expect(line.find('.vsub').text()).toBe('平均出货 40.0 抽 · 歪率 50%')
   })
 })
 
