@@ -32,10 +32,22 @@ const badge = computed(() => {
 })
 
 const degreeClass = computed(() =>
-  props.card.degree === 'lucky' ? 'n-lucky' : props.card.degree === 'unlucky' ? 'n-unlucky' : '',
+  props.card.degree === 'lucky'
+    ? 'n-lucky'
+    : props.card.degree === 'mildLucky'
+      ? 'n-mild-lucky'
+      : props.card.degree === 'unlucky'
+        ? 'n-unlucky'
+        : '',
 )
 const barClass = computed(() =>
-  props.card.degree === 'lucky' ? 'bar-lucky' : props.card.degree === 'unlucky' ? 'bar-unlucky' : '',
+  props.card.degree === 'lucky'
+    ? 'bar-lucky'
+    : props.card.degree === 'mildLucky'
+      ? 'bar-mild-lucky'
+      : props.card.degree === 'unlucky'
+        ? 'bar-unlucky'
+        : '',
 )
 
 /** 62 抽期望参考线(社区口径,仅供参考),刻线与图例共用文案 */
@@ -245,7 +257,7 @@ const ariaLabel = computed(() => {
   font: 500 10px var(--font-num);
 }
 
-/* 第二视觉层:欧非程度(数字与微条同色:绿=超欧,红=超非,中性=正常) */
+/* 第二视觉层:欧非程度(数字与微条同色:绿=超欧,浅绿=欧,红=超非,中性=正常) */
 .ft-pulls {
   display: flex;
   align-items: baseline;
@@ -260,6 +272,10 @@ const ariaLabel = computed(() => {
 
 .ft-pulls b.n-lucky {
   color: var(--lucky);
+}
+
+.ft-pulls b.n-mild-lucky {
+  color: var(--lucky-soft);
 }
 
 .ft-pulls b.n-unlucky {
@@ -287,6 +303,10 @@ const ariaLabel = computed(() => {
 
 .ft-bar .ft-fill.bar-lucky {
   background: var(--lucky);
+}
+
+.ft-bar .ft-fill.bar-mild-lucky {
+  background: var(--lucky-soft);
 }
 
 .ft-bar .ft-fill.bar-unlucky {

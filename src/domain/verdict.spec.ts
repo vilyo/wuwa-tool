@@ -75,11 +75,13 @@ describe('评语档位与评级字母(原型 tierOf 定稿):档位边界逐一�
   })
 })
 
-describe('程度阈值:超欧 ≤20 抽 / 超非 ≥70 抽', () => {
-  it('边界值 20/21 与 69/70', () => {
+describe('程度阈值:超欧 ≤20 抽 / 欧 21–40 抽 / 正常 41–69 抽 / 超非 ≥70 抽', () => {
+  it('边界值 20/21、40/41 与 69/70', () => {
     expect(degreeOf(1)).toBe('lucky')
     expect(degreeOf(20)).toBe('lucky')
-    expect(degreeOf(21)).toBe('normal')
+    expect(degreeOf(21)).toBe('mildLucky')
+    expect(degreeOf(40)).toBe('mildLucky')
+    expect(degreeOf(41)).toBe('normal')
     expect(degreeOf(69)).toBe('normal')
     expect(degreeOf(70)).toBe('unlucky')
     expect(degreeOf(120)).toBe('unlucky')

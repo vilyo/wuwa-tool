@@ -96,13 +96,21 @@ describe('UP / 歪两态', () => {
 })
 
 describe('程度着色与 62 抽期望参考线', () => {
-  it('数字与微条按程度着色:≤20 绿 / ≥70 红 / 其余中性', () => {
+  it('数字与微条按程度着色:≤20 绿 / ≥70 红', () => {
     const wrapper = mountRoster(history([[8, '忌炎'], [75, '维里奈']]))
     const tiles = wrapper.findAll('.ftile')
     expect(tiles[0]!.find('.ft-pulls b').classes()).toContain('n-unlucky')
     expect(tiles[0]!.find('.ft-bar i').classes()).toContain('bar-unlucky')
     expect(tiles[1]!.find('.ft-pulls b').classes()).toContain('n-lucky')
     expect(tiles[1]!.find('.ft-bar i').classes()).toContain('bar-lucky')
+  })
+
+  it('21–40 段「欧」:数字与微条用浅绿档类名(31 抽)', () => {
+    const wrapper = mountRoster(history([[30, '忌炎']]))
+    // 名册首位是「进行中」虚卡(同样含 .ft-pulls b),先收敛到五星卡再断言
+    const tile = wrapper.find('.ftile')
+    expect(tile.find('.ft-pulls b').classes()).toContain('n-mild-lucky')
+    expect(tile.find('.ft-bar i').classes()).toContain('bar-mild-lucky')
   })
 
   it('角色系微条带 62 抽期望刻线(社区口径标注),武器系不显示', () => {

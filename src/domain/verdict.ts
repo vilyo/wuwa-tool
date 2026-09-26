@@ -4,7 +4,8 @@
  * - 评语档位与评级字母按五星平均出货(含出货那抽)定档,原型 tierOf 定稿:
  *   S ≤35 天选之人 / A ≤50 欧洲常驻居民 / B+ ≤62 手气不错 / B ≤70 中规中矩 / C ≤78 玄不救非 / D >78 保底战神。
  * - 修正项:歪率 ≥80% 追加「命运的反面宠儿」;出过 ≤10 抽五星追加「十里坡剑圣」式彩蛋(原型文案)。
- * - 程度阈值:超欧 ≤20 抽(绿)、超非 ≥70 抽(红),供名册数字/微条着色(#08)。
+ * - 程度阈值:超欧 ≤20 抽(绿)、欧 21–40 抽(浅绿)、正常 41–69 抽(中性)、超非 ≥70 抽(红),
+ *   供名册数字/微条着色(#08)。
  * - 期望参考线:角色系 62 抽(社区口径,仅供参考);武器系 V1 不显示(#08/#09/#10 消费)。
  */
 import type { PoolCategory } from './pools'
@@ -12,14 +13,17 @@ import type { FiveStarPull, PoolStats } from './stats'
 
 /** 程度阈值:出货 ≤20 抽为超欧(lucky,绿) */
 export const LUCKY_PULLS = 20
+/** 程度阈值:出货 ≤40 抽为欧(mildLucky,浅绿) */
+export const MILD_LUCKY_PULLS = 40
 /** 程度阈值:出货 ≥70 抽为超非(unlucky,红) */
 export const UNLUCKY_PULLS = 70
 
-export type Degree = 'lucky' | 'normal' | 'unlucky'
+export type Degree = 'lucky' | 'mildLucky' | 'normal' | 'unlucky'
 
 /** 单个五星出货抽数的程度(名册数字与 0–80 微条着色口径,PRD §5) */
 export function degreeOf(pulls: number): Degree {
   if (pulls <= LUCKY_PULLS) return 'lucky'
+  if (pulls <= MILD_LUCKY_PULLS) return 'mildLucky'
   if (pulls >= UNLUCKY_PULLS) return 'unlucky'
   return 'normal'
 }

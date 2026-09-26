@@ -53,11 +53,11 @@ describe('名册卡片视图模型:时间倒序', () => {
 })
 
 describe('名册卡片视图模型:程度与微条', () => {
-  it('程度按出货抽数定档:≤20 绿 / ≥70 红 / 其余中性', () => {
+  it('程度按出货抽数定档:≤20 超欧 / 21–40 欧 / 41–69 正常 / ≥70 超非(40 压在欧档上边界)', () => {
     const cards = rosterCards(
       poolStats(history([[8, '忌炎'], [39, '维里奈'], [75, '卡卡罗']]), 1),
     )
-    expect(cards.map((card) => card.degree)).toEqual(['unlucky', 'normal', 'lucky'])
+    expect(cards.map((card) => card.degree)).toEqual(['unlucky', 'mildLucky', 'lucky'])
   })
 
   it('微条常规对照 0–80:出货抽数映射为填充百分比', () => {

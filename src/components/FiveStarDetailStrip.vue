@@ -31,7 +31,13 @@ const badge = computed(() => {
 })
 
 const degreeClass = computed(() =>
-  props.card.degree === 'lucky' ? 'n-lucky' : props.card.degree === 'unlucky' ? 'n-unlucky' : '',
+  props.card.degree === 'lucky'
+    ? 'n-lucky'
+    : props.card.degree === 'mildLucky'
+      ? 'n-mild-lucky'
+      : props.card.degree === 'unlucky'
+        ? 'n-unlucky'
+        : '',
 )
 
 // 微条着色随结局(同原型:UP 青 / 歪灰),中性走 UP 色
@@ -164,6 +170,10 @@ const fillClass = computed(() => (props.card.outcome === 'off' ? 'off' : 'up'))
 
 .detail-pulls .n.n-lucky {
   color: var(--lucky);
+}
+
+.detail-pulls .n.n-mild-lucky {
+  color: var(--lucky-soft);
 }
 
 .detail-pulls .n.n-unlucky {

@@ -29,7 +29,7 @@ export interface RosterCardVM {
   off: StandardRosterVerdict
   /** 结局视觉态 */
   outcome: CardOutcome
-  /** 程度档位:数字与微条着色口径(≤20 绿 / ≥70 红 / 其余中性) */
+  /** 程度档位:数字与微条着色口径(≤20 超欧绿 / 21–40 欧浅绿 / 41–69 正常中性 / ≥70 超非红) */
   degree: Degree
   /** 微条填充百分比(0–100) */
   barPercent: number

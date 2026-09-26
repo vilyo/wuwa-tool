@@ -60,6 +60,7 @@
   --off: #6e7b86;
   --danger: #b94a42;
   --lucky: #1b8556;
+  --lucky-soft: #4f9e77;
   --wash-off: rgba(110, 123, 134, 0.16);
   --row-hover: #e9edeb;
   --backdrop: rgba(23, 26, 28, 0.45);
@@ -116,6 +117,7 @@ html[data-theme='dark'] {
   --off: #8b98a4;
   --danger: #e0655c;
   --lucky: #4cc38a;
+  --lucky-soft: #3ba172;
   --wash-off: rgba(139, 152, 164, 0.13);
   --row-hover: #2b3033;
   --backdrop: rgba(8, 10, 10, 0.6);
