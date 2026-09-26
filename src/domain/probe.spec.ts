@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { diagnosisGuidance, pickLatestLink, type ExtractedLink } from './probe'
+import { diagnosisGuidance, fileOutcomeGuidance, pickLatestLink, type ExtractedLink } from './probe'
 
 const CN_LINK: ExtractedLink = {
   playerId: '106485288',
@@ -32,5 +32,21 @@ describe('diagnosisGuidance', () => {
     expect(diagnosisGuidance('log-disabled')).toContain('Engine.ini')
 
     expect(diagnosisGuidance('log-denied')).toContain('只读')
+  })
+})
+
+describe('fileOutcomeGuidance', () => {
+  it('可读但无链接:引导确认文件来源与唤取记录页前置', () => {
+    const text = fileOutcomeGuidance({ type: 'ok', urlCount: 0, decode: 'none' })
+
+    expect(text).toContain('没有找到唤取链接')
+    expect(text).toContain('Client.log')
+    expect(text).toContain('唤取记录')
+  })
+
+  it('其余读取结果各配具体指引', () => {
+    expect(fileOutcomeGuidance({ type: 'missing' })).toContain('不存在')
+    expect(fileOutcomeGuidance({ type: 'denied' })).toContain('只读')
+    expect(fileOutcomeGuidance({ type: 'io-error' })).toContain('读取文件失败')
   })
 })

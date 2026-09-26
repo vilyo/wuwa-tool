@@ -6,7 +6,7 @@ import {
   importBackup as importBackupFromFile,
 } from '@/domain/backup'
 import { parseGachaLink, type ParsedGachaLink } from '@/domain/link'
-import { diagnosisGuidance } from '@/domain/probe'
+import { diagnosisGuidance, fileOutcomeGuidance, type ExtractedLink } from '@/domain/probe'
 import type { GachaRecord } from '@/domain/records'
 import type { SyncDeps } from '@/domain/syncPool'
 import { syncAll, type SyncAllProgress } from '@/domain/syncAll'
@@ -23,6 +23,7 @@ import {
   pickBackupOpenPath,
   pickBackupSavePath,
   pickGameDirectory,
+  pickLogFile,
   realClock,
   tauriBackupFile,
   tauriDirProbe,
@@ -275,14 +276,9 @@ export const useRecordsStore = defineStore('records', () => {
     }
   }
 
-  /** 从已确认的游戏目录提取链接:单 UID 直接走管线;多 UID 暂停,交 UID 选择列表 */
-  async function syncFromGameDir(gameDir: string): Promise<boolean> {
-    const result = await tauriDirProbe.extractLinks(gameDir)
-    const links = result.links
-    if (links.length === 0) {
-      message.value = { kind: 'error', text: diagnosisGuidance(result.diagnosis ?? 'no-link') }
-      return false
-    }
+  /** 提取出的链接路由(一键获取与日志文件导入共用):单 UID 直接走管线并标注 UID;
+   *  多 UID 展示选择列表,由用户决定导入哪个档案(#05) */
+  async function importExtractedLinks(links: readonly ExtractedLink[]): Promise<boolean> {
     if (links.length === 1) {
       const link = links[0]!
       const ok = await importLink(link.url)
@@ -292,7 +288,6 @@ export const useRecordsStore = defineStore('records', () => {
       }
       return ok
     }
-    // 一份日志含多个 UID:展示选择列表,由用户决定导入哪个档案(#05)
     let archiveSummaries: ArchiveSummary[]
     try {
       archiveSummaries = await listArchives()
@@ -302,6 +297,43 @@ export const useRecordsStore = defineStore('records', () => {
     }
     pendingUids.value = buildUidChoices(links, archiveSummaries)
     return false
+  }
+
+  /** 从已确认的游戏目录提取链接:无链接按诊断给指引,其余进入共用链接路由 */
+  async function syncFromGameDir(gameDir: string): Promise<boolean> {
+    const result = await tauriDirProbe.extractLinks(gameDir)
+    if (result.links.length === 0) {
+      message.value = { kind: 'error', text: diagnosisGuidance(result.diagnosis ?? 'no-link') }
+      return false
+    }
+    return await importExtractedLinks(result.links)
+  }
+
+  /** 从用户选择的日志文件解析链接并导入(手动粘贴的补充入口):
+   *  拷贝出来的 Client.log / KRSDK debug.log 等任意路径文件;
+   *  读取与解析期间置 probing 门闩,与一键获取/粘贴导入互斥 */
+  async function importFromLogFile(): Promise<boolean> {
+    if (syncing.value || probing.value) return false
+    probing.value = true
+    message.value = null
+    pendingUids.value = null
+    pendingSwitch.value = null
+    autoSyncNote.value = null
+    try {
+      const path = await pickLogFile()
+      if (path === null) return false // 取消选文件:静默返回,不留消息
+      const result = await tauriDirProbe.extractLinksFromFile(path)
+      if (result.links.length === 0) {
+        message.value = { kind: 'error', text: fileOutcomeGuidance(result.outcome) }
+        return false
+      }
+      return await importExtractedLinks(result.links)
+    } catch (error) {
+      message.value = { kind: 'error', text: `解析日志文件失败:${errorText(error)}` }
+      return false
+    } finally {
+      probing.value = false
+    }
   }
 
   /** 探测段(#04/#13 共用):常规探测 → 失败弹手动选择并验证;确认可用的目录记入展示态。
@@ -406,6 +438,7 @@ export const useRecordsStore = defineStore('records', () => {
     autoSyncNote,
     init,
     importLink,
+    importFromLogFile,
     oneClickSync,
     reprobeGameDir,
     autoSyncOnStartup,

@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api/core'
 import type { ArchiveSummary } from '@/domain/archives'
 import type { BackupFilePort } from '@/domain/backup'
 import { DomainError, NetworkError } from '@/domain/errors'
-import type { DirProbePort, DirProbeReport, LogProbeResult } from '@/domain/probe'
+import type { DirProbePort, DirProbeReport, FileLinkResult, LogProbeResult } from '@/domain/probe'
 import type { ClockPort, GachaApiPort, PoolQueryRequest, StoragePort } from '@/domain/ports'
 import type { GachaRecord } from '@/domain/records'
 
@@ -58,6 +58,9 @@ export const tauriDirProbe: DirProbePort = {
   extractLinks(gameDir: string): Promise<LogProbeResult> {
     return invoke<LogProbeResult>('extract_gacha_links', { gameDir })
   },
+  extractLinksFromFile(path: string): Promise<FileLinkResult> {
+    return invoke<FileLinkResult>('extract_links_from_file', { path })
+  },
 }
 
 /** 手动指定游戏目录:系统文件夹选择器(tauri-plugin-dialog),取消返回 null */
@@ -67,6 +70,21 @@ export async function pickGameDirectory(): Promise<string | null> {
     directory: true,
     multiple: false,
     title: '选择游戏安装目录(含 Client 文件夹)',
+  })
+  return typeof selected === 'string' ? selected : null
+}
+
+/** 手动选择日志文件(Client.log / KRSDK debug.log 及其拷贝):系统打开对话框,取消返回 null */
+export async function pickLogFile(): Promise<string | null> {
+  const { open } = await import('@tauri-apps/plugin-dialog')
+  const selected = await open({
+    directory: false,
+    multiple: false,
+    title: '选择包含唤取链接的日志文件(Client.log / debug.log)',
+    filters: [
+      { name: '日志文件', extensions: ['log', 'txt'] },
+      { name: '所有文件', extensions: ['*'] },
+    ],
   })
   return typeof selected === 'string' ? selected : null
 }

@@ -9,7 +9,9 @@ const mocks = vi.hoisted(() => ({
   listArchives: vi.fn(),
   probeGameDir: vi.fn(),
   extractLinks: vi.fn(),
+  extractLinksFromFile: vi.fn(),
   pickGameDirectory: vi.fn(),
+  pickLogFile: vi.fn(),
   clearArchive: vi.fn(),
   writeTextFile: vi.fn(),
   readTextFile: vi.fn(),
@@ -22,8 +24,13 @@ vi.mock('@/services/tauriPorts', () => ({
   tauriStorage: { loadRecords: mocks.loadRecords, insertRecords: mocks.insertRecords },
   realClock: { now: () => 0, sleep: vi.fn() },
   listArchives: mocks.listArchives,
-  tauriDirProbe: { probeGameDir: mocks.probeGameDir, extractLinks: mocks.extractLinks },
+  tauriDirProbe: {
+    probeGameDir: mocks.probeGameDir,
+    extractLinks: mocks.extractLinks,
+    extractLinksFromFile: mocks.extractLinksFromFile,
+  },
   pickGameDirectory: mocks.pickGameDirectory,
+  pickLogFile: mocks.pickLogFile,
   clearArchive: mocks.clearArchive,
   tauriBackupFile: { writeTextFile: mocks.writeTextFile, readTextFile: mocks.readTextFile },
   pickBackupSavePath: mocks.pickBackupSavePath,
@@ -135,5 +142,45 @@ describe('手动粘贴入口', () => {
     expect(mocks.queryPool).not.toHaveBeenCalled()
     // 失败不清空输入,便于门闩解除后重试
     expect((wrapper.find('textarea').element as HTMLTextAreaElement).value).toBe(CN_LINK)
+  })
+
+  it('点击「从日志文件导入」:选文件解析出链接后自动开始全池导入', async () => {
+    mocks.pickLogFile.mockResolvedValue('C:\\Logs\\Client.log')
+    mocks.extractLinksFromFile.mockResolvedValue({
+      path: 'C:\\Logs\\Client.log',
+      outcome: { type: 'ok', urlCount: 1, decode: 'plain' },
+      links: [{ playerId: '106485288', url: CN_LINK }],
+    })
+    mocks.queryPool.mockResolvedValue(okOnePool)
+    mocks.insertRecords.mockResolvedValue(1)
+
+    const wrapper = mountCard()
+    await wrapper.find('button.paste-file-btn').trigger('click')
+
+    await vi.waitFor(() => {
+      expect(wrapper.find('.paste-message').text()).toContain('新增 13 条')
+    })
+    expect(mocks.pickLogFile).toHaveBeenCalledTimes(1)
+    expect(mocks.extractLinksFromFile).toHaveBeenCalledWith('C:\\Logs\\Client.log')
+    expect(mocks.queryPool).toHaveBeenCalledTimes(13)
+  })
+
+  it('文件里解析不出链接时,消息给出错误指引且不发起拉取', async () => {
+    mocks.pickLogFile.mockResolvedValue('C:\\Logs\\Client.log')
+    mocks.extractLinksFromFile.mockResolvedValue({
+      path: 'C:\\Logs\\Client.log',
+      outcome: { type: 'ok', urlCount: 0, decode: 'none' },
+      links: [],
+    })
+
+    const wrapper = mountCard()
+    await wrapper.find('button.paste-file-btn').trigger('click')
+
+    await vi.waitFor(() => {
+      expect(wrapper.find('.paste-message').exists()).toBe(true)
+    })
+    expect(wrapper.find('.paste-message').classes()).toContain('is-error')
+    expect(wrapper.find('.paste-message').text()).toContain('没有找到唤取链接')
+    expect(mocks.queryPool).not.toHaveBeenCalled()
   })
 })

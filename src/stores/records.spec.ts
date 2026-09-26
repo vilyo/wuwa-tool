@@ -11,7 +11,9 @@ const mocks = vi.hoisted(() => ({
   listArchives: vi.fn(),
   probeGameDir: vi.fn(),
   extractLinks: vi.fn(),
+  extractLinksFromFile: vi.fn(),
   pickGameDirectory: vi.fn(),
+  pickLogFile: vi.fn(),
   clearArchive: vi.fn(),
   writeTextFile: vi.fn(),
   readTextFile: vi.fn(),
@@ -24,8 +26,13 @@ vi.mock('@/services/tauriPorts', () => ({
   tauriStorage: { loadRecords: mocks.loadRecords, insertRecords: mocks.insertRecords },
   realClock: { now: () => 0, sleep: vi.fn() },
   listArchives: mocks.listArchives,
-  tauriDirProbe: { probeGameDir: mocks.probeGameDir, extractLinks: mocks.extractLinks },
+  tauriDirProbe: {
+    probeGameDir: mocks.probeGameDir,
+    extractLinks: mocks.extractLinks,
+    extractLinksFromFile: mocks.extractLinksFromFile,
+  },
   pickGameDirectory: mocks.pickGameDirectory,
+  pickLogFile: mocks.pickLogFile,
   clearArchive: mocks.clearArchive,
   tauriBackupFile: { writeTextFile: mocks.writeTextFile, readTextFile: mocks.readTextFile },
   pickBackupSavePath: mocks.pickBackupSavePath,
@@ -435,6 +442,140 @@ describe('records store · 一键获取', () => {
 
     expect(store.message?.kind).toBe('error')
     expect(store.message?.text).toContain('只读')
+  })
+})
+
+describe('records store · 从日志文件导入', () => {
+  const LOG_PATH = 'C:\\Users\\me\\Desktop\\Client.log'
+  const CN_URL =
+    'https://aki-gm-resources.aki-game.com/aki/gacha/index.html#/record?svr_id=76402e5b&player_id=106485288&lang=zh-Hans&gacha_id=100074&gacha_type=1&svr_area=cn&record_id=file11111&resources_id=c9fbcd24&platform=PC'
+  const OVERSEA_URL =
+    'https://aki-gm-resources-oversea.aki-game.net/aki/gacha/index.html#/record?svr_id=ee5066f9&player_id=882210234&lang=en-US&gacha_id=100074&gacha_type=1&svr_area=oversea&record_id=file22222&resources_id=dd559012&platform=PC'
+
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    localStorage.clear()
+    mocks.loadRecords.mockResolvedValue([])
+    mocks.insertRecords.mockResolvedValue(1)
+    mocks.queryPool.mockResolvedValue(apiOk([apiItem('2025-05-01 10:00:00')]))
+  })
+
+  it('选择文件解析出单 UID 链接:直接走全池管线并标注 UID', async () => {
+    seedDb()
+    mocks.pickLogFile.mockResolvedValue(LOG_PATH)
+    mocks.extractLinksFromFile.mockResolvedValue({
+      path: LOG_PATH,
+      outcome: { type: 'ok', urlCount: 1, decode: 'plain' },
+      links: [{ playerId: '106485288', url: CN_URL }],
+    })
+
+    const store = useRecordsStore()
+    const ok = await store.importFromLogFile()
+
+    expect(ok).toBe(true)
+    expect(mocks.pickLogFile).toHaveBeenCalledTimes(1)
+    expect(mocks.extractLinksFromFile).toHaveBeenCalledWith(LOG_PATH)
+    expect(mocks.queryPool).toHaveBeenCalledTimes(13)
+    expect(store.playerId).toBe('106485288')
+    expect(store.message?.kind).toBe('success')
+    expect(store.message?.text).toContain('检测到 UID 106485288')
+  })
+
+  it('文件含多个 UID:暂停并弹出 UID 选择列表,不静默取其一', async () => {
+    mocks.pickLogFile.mockResolvedValue(LOG_PATH)
+    mocks.extractLinksFromFile.mockResolvedValue({
+      path: LOG_PATH,
+      outcome: { type: 'ok', urlCount: 2, decode: 'plain' },
+      links: [
+        { playerId: '106485288', url: CN_URL },
+        { playerId: '882210234', url: OVERSEA_URL },
+      ],
+    })
+    mocks.listArchives.mockResolvedValue([])
+
+    const store = useRecordsStore()
+    const ok = await store.importFromLogFile()
+
+    expect(ok).toBe(false)
+    expect(mocks.queryPool).not.toHaveBeenCalled()
+    expect(store.pendingUids).toHaveLength(2)
+  })
+
+  it('文件中无链接:按读取结果给指引,不进入拉取管线', async () => {
+    mocks.pickLogFile.mockResolvedValue(LOG_PATH)
+    mocks.extractLinksFromFile.mockResolvedValue({
+      path: LOG_PATH,
+      outcome: { type: 'ok', urlCount: 0, decode: 'none' },
+      links: [],
+    })
+
+    const store = useRecordsStore()
+    const ok = await store.importFromLogFile()
+
+    expect(ok).toBe(false)
+    expect(mocks.queryPool).not.toHaveBeenCalled()
+    expect(store.message?.kind).toBe('error')
+    expect(store.message?.text).toContain('没有找到唤取链接')
+  })
+
+  it('文件被拒绝读取:给出只读指引', async () => {
+    mocks.pickLogFile.mockResolvedValue(LOG_PATH)
+    mocks.extractLinksFromFile.mockResolvedValue({
+      path: LOG_PATH,
+      outcome: { type: 'denied' },
+      links: [],
+    })
+
+    const store = useRecordsStore()
+    await store.importFromLogFile()
+
+    expect(store.message?.kind).toBe('error')
+    expect(store.message?.text).toContain('只读')
+  })
+
+  it('用户取消选择文件:静默返回,不读文件也不发请求', async () => {
+    mocks.pickLogFile.mockResolvedValue(null)
+
+    const store = useRecordsStore()
+    const ok = await store.importFromLogFile()
+
+    expect(ok).toBe(false)
+    expect(mocks.extractLinksFromFile).not.toHaveBeenCalled()
+    expect(mocks.queryPool).not.toHaveBeenCalled()
+    expect(store.message).toBeNull()
+  })
+
+  it('解析命令本身失败:给出错误反馈', async () => {
+    mocks.pickLogFile.mockResolvedValue(LOG_PATH)
+    mocks.extractLinksFromFile.mockRejectedValue(new Error('boom'))
+
+    const store = useRecordsStore()
+    const ok = await store.importFromLogFile()
+
+    expect(ok).toBe(false)
+    expect(store.message?.kind).toBe('error')
+    expect(store.message?.text).toContain('解析日志文件失败')
+    expect(store.probing).toBe(false)
+  })
+
+  it('同步期间调用文件导入:直接忽略', async () => {
+    let releaseFirst!: (value: string) => void
+    mocks.queryPool.mockImplementation(
+      () => new Promise<string>((resolve) => { releaseFirst = resolve }),
+    )
+    const store = useRecordsStore()
+    const syncing = store.importLink(CN_LINK)
+    await vi.waitFor(() => expect(store.syncing).toBe(true))
+
+    const ok = await store.importFromLogFile()
+
+    expect(ok).toBe(false)
+    expect(mocks.pickLogFile).not.toHaveBeenCalled()
+    // 放行首池请求后,后续池走常规返回,让管线收尾
+    mocks.queryPool.mockResolvedValue(apiOk([apiItem('2025-05-01 10:00:00')]))
+    releaseFirst(apiOk([apiItem('2025-05-01 10:00:00')]))
+    await syncing
   })
 })
 

@@ -11,6 +11,7 @@ const buttonLabel = computed(() => {
   if (store.probing) return '获取中…'
   return '导入'
 })
+const fileButtonLabel = computed(() => (store.probing ? '解析中…' : '从日志文件导入'))
 
 async function submit(): Promise<void> {
   const raw = link.value.trim()
@@ -18,6 +19,11 @@ async function submit(): Promise<void> {
   const ok = await store.importLink(raw)
   // 成功后清空输入便于再次粘贴;失败保留便于修改重试
   if (ok) link.value = ''
+}
+
+async function importLogFile(): Promise<void> {
+  if (busy.value) return
+  await store.importFromLogFile()
 }
 </script>
 
@@ -34,6 +40,15 @@ async function submit(): Promise<void> {
       placeholder="粘贴唤取链接:在游戏内打开「唤取记录」页后,从日志或浏览器地址栏复制完整链接"
     />
     <div class="paste-actions">
+      <button
+        type="button"
+        class="paste-file-btn"
+        :disabled="busy"
+        title="已把游戏日志文件复制出来?直接选择文件,自动解析其中的唤取链接开始导入"
+        @click="importLogFile"
+      >
+        <span>{{ fileButtonLabel }}</span>
+      </button>
       <button
         type="button"
         class="paste-btn"
@@ -98,9 +113,11 @@ async function submit(): Promise<void> {
 .paste-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 10px;
 }
 
-.paste-btn {
+.paste-btn,
+.paste-file-btn {
   border: none;
   background: var(--btn);
   color: var(--btn-ink);
@@ -111,12 +128,27 @@ async function submit(): Promise<void> {
   cursor: pointer;
 }
 
-.paste-btn > * {
+.paste-btn > *,
+.paste-file-btn > * {
   display: inline-block;
   transform: skewX(calc(-1 * var(--skew)));
 }
 
-.paste-btn:disabled {
+/* 次级入口:描边弱化,主操作(粘贴导入)保持金色实心 */
+.paste-file-btn {
+  background: transparent;
+  color: var(--text-2);
+  border: 1px solid var(--hairline-2);
+  font-weight: 600;
+}
+
+.paste-file-btn:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--text-2);
+}
+
+.paste-btn:disabled,
+.paste-file-btn:disabled {
   opacity: 0.45;
   cursor: default;
 }

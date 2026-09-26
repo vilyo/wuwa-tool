@@ -236,6 +236,31 @@ pub fn extract_gacha_links(game_dir: String) -> LogProbeResult {
     }
 }
 
+/// 用户手动选择的单份日志文件的解析结果(手动粘贴的补充入口):
+/// 任意路径、不要求游戏目录布局;outcome 供前端给具体指引,links 已按 player_id 归并
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FileLinkResult {
+    pub path: String,
+    pub outcome: LogOutcome,
+    pub links: Vec<ExtractedLink>,
+}
+
+/// 解析用户选择的单份日志文件(拷贝出来的 Client.log / KRSDK debug.log 等):
+/// 与 extract_gacha_links 共用 read_log 的双路径(原文匹配→XOR 解码)与多 UID 归并;
+/// 失败诊断不在此分类(没有游戏目录上下文,Engine.ini 检查无从谈起),由前端按 outcome 给指引
+#[tauri::command(async)]
+pub fn extract_links_from_file(path: String) -> FileLinkResult {
+    let file = PathBuf::from(path.trim());
+    let (outcome, urls) = read_log(&file);
+    let links = logscan::latest_links_by_player(&urls);
+    FileLinkResult {
+        path: file.to_string_lossy().into_owned(),
+        outcome,
+        links,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -435,5 +460,74 @@ mod tests {
         assert_eq!(result.diagnosis, Some(DIAG_NO_LINK));
         assert!(matches!(result.files[0].outcome, LogOutcome::Missing));
         assert!(matches!(result.files[1].outcome, LogOutcome::Missing));
+    }
+
+    #[test]
+    fn parse_picked_file_extracts_plain_log_without_game_layout() {
+        // 任意路径的日志拷贝:不要求 Client/Saved/Logs 布局,多 UID 照常归并
+        let dir = temp_root("picked_plain");
+        let file = dir.join("copied-Client.log");
+        std::fs::write(&file, include_str!("fixtures/multi_uid.log")).unwrap();
+
+        let result = extract_links_from_file(file.to_string_lossy().into_owned());
+        assert_eq!(result.path, file.to_string_lossy());
+        assert_eq!(result.links.len(), 2);
+        assert_eq!(result.links[0].player_id, "882210234");
+        assert_eq!(result.links[1].player_id, "106485288");
+        match &result.outcome {
+            LogOutcome::Ok { url_count, decode } => {
+                assert_eq!(*url_count, 3);
+                assert_eq!(*decode, "plain");
+            }
+            other => panic!("应命中原文直读路径,实际 {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_picked_xor_file_decodes_without_game_layout() {
+        let dir = temp_root("picked_xor");
+        let file = dir.join("debug.log");
+        std::fs::write(&file, include_bytes!("fixtures/client_xor.log")).unwrap();
+
+        let result = extract_links_from_file(file.to_string_lossy().into_owned());
+        assert_eq!(result.links.len(), 1);
+        assert!(result.links[0].url.contains("record_id=9f2c77aa"));
+        match &result.outcome {
+            LogOutcome::Ok { url_count, decode } => {
+                assert_eq!(*url_count, 1);
+                assert_eq!(*decode, "xor");
+            }
+            other => panic!("应命中 XOR 解码路径,实际 {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_picked_file_reports_missing_and_io_error_outcomes() {
+        let dir = temp_root("picked_fail");
+        // 不存在的路径:缺失而不是诊断分类(指引由前端按 outcome 给)
+        let result = extract_links_from_file(dir.join("gone.log").to_string_lossy().into_owned());
+        assert!(result.links.is_empty());
+        assert!(matches!(result.outcome, LogOutcome::Missing));
+
+        // 目录路径当文件读:落入非缺失/非权限的 IO 错误分支
+        let result = extract_links_from_file(dir.to_string_lossy().into_owned());
+        assert!(matches!(result.outcome, LogOutcome::IoError));
+    }
+
+    #[test]
+    fn parse_picked_file_without_urls_yields_ok_zero_links() {
+        let dir = temp_root("picked_nolink");
+        let file = dir.join("Client.log");
+        std::fs::write(&file, include_str!("fixtures/no_url.log")).unwrap();
+
+        let result = extract_links_from_file(file.to_string_lossy().into_owned());
+        assert!(result.links.is_empty());
+        match &result.outcome {
+            LogOutcome::Ok { url_count, decode } => {
+                assert_eq!(*url_count, 0);
+                assert_eq!(*decode, "none");
+            }
+            other => panic!("可读但无链接应为 Ok(0, none),实际 {other:?}"),
+        }
     }
 }

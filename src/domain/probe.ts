@@ -49,12 +49,23 @@ export interface LogProbeResult {
   diagnosis: LogDiagnosisCode | null
 }
 
+/** 用户手动选择的单份日志文件的解析结果(手动粘贴的补充入口):
+ *  任意路径、不要求游戏目录布局,没有游戏目录上下文所以无 diagnosis,
+ *  失败指引按 outcome 给(见 fileOutcomeGuidance) */
+export interface FileLinkResult {
+  path: string
+  outcome: LogReadOutcome
+  links: ExtractedLink[]
+}
+
 export type ProbeDiagnosisCode = 'no-game-dir' | LogDiagnosisCode
 
 /** 目录探测端口:实现见 services/tauriPorts.ts(Rust probe 命令) */
 export interface DirProbePort {
   probeGameDir(manualDir: string | null): Promise<DirProbeReport>
   extractLinks(gameDir: string): Promise<LogProbeResult>
+  /** 用户选择的单份日志文件(拷贝出来的 Client.log / debug.log 等) */
+  extractLinksFromFile(path: string): Promise<FileLinkResult>
 }
 
 /** 最新一条唤取链接 = 列表末位(research §1.4 取最后一条);空列表返回 null */
@@ -76,4 +87,18 @@ const DIAGNOSIS_GUIDANCE: Record<ProbeDiagnosisCode, string> = {
 
 export function diagnosisGuidance(code: ProbeDiagnosisCode): string {
   return DIAGNOSIS_GUIDANCE[code]
+}
+
+/** 所选日志文件解析不出链接时的下一步指引(文件流入口没有游戏目录上下文,按读取结果给) */
+export function fileOutcomeGuidance(outcome: LogReadOutcome): string {
+  switch (outcome.type) {
+    case 'ok':
+      return '该文件中没有找到唤取链接:请确认选择的是游戏日志文件(Client.log 或 KRSDK debug.log),且复制前已在游戏内打开过一次「唤取记录」页。'
+    case 'missing':
+      return '所选文件不存在,可能已被移动或删除,请重新选择。'
+    case 'denied':
+      return '文件被系统拒绝读取(只读或权限不足),请解除只读属性后重试。'
+    case 'io-error':
+      return '读取文件失败,请确认文件完整、未被其他程序占用后重试。'
+  }
 }

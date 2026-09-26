@@ -16,6 +16,7 @@ pub fn run() {
             db::db_import_from_file,
             probe::probe_game_dir,
             probe::extract_gacha_links,
+            probe::extract_links_from_file,
         ])
         .build(tauri::generate_context!())
         .expect("Tauri 应用初始化失败")
