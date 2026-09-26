@@ -1,15 +1,23 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { buildUidChoices, type ArchiveSummary, type UidChoice } from '@/domain/archives'
+import {
+  exportBackup as exportBackupToFile,
+  importBackup as importBackupFromFile,
+} from '@/domain/backup'
 import { parseGachaLink, type ParsedGachaLink } from '@/domain/link'
 import { diagnosisGuidance } from '@/domain/probe'
 import type { GachaRecord } from '@/domain/records'
 import type { SyncDeps } from '@/domain/syncPool'
 import { syncAll, type SyncAllProgress } from '@/domain/syncAll'
 import {
+  clearArchive,
   listArchives,
+  pickBackupOpenPath,
+  pickBackupSavePath,
   pickGameDirectory,
   realClock,
+  tauriBackupFile,
   tauriDirProbe,
   tauriGachaApi,
   tauriStorage,
@@ -200,6 +208,70 @@ export const useRecordsStore = defineStore('records', () => {
     }
   }
 
+  /** 导出当前档案为 JSON 备份文件(#12):dialog save 选路径,取消则静默返回 */
+  async function exportBackup(): Promise<boolean> {
+    if (playerId.value === null) {
+      message.value = { kind: 'error', text: '尚无唤取档案,先完成一次导入再导出备份。' }
+      return false
+    }
+    try {
+      const path = await pickBackupSavePath(playerId.value)
+      if (path === null) return false
+      const result = await exportBackupToFile(
+        { file: tauriBackupFile },
+        path,
+        playerId.value,
+        records.value,
+        new Date().toISOString(),
+      )
+      message.value = { kind: 'success', text: `已导出 ${result.count} 条唤取记录到 ${result.path}。` }
+      return true
+    } catch (error) {
+      message.value = { kind: 'error', text: `导出备份失败:${errorText(error)}` }
+      return false
+    }
+  }
+
+  /** 导入备份 JSON(#12):按去重键合并入备份所属 UID 的档案,取消选文件则静默返回。
+   *  导入档案 = 当前档案时刷新展示;导入其他 UID 不切换当前档案(可从档案列表切回) */
+  async function importBackup(): Promise<boolean> {
+    try {
+      const path = await pickBackupOpenPath()
+      if (path === null) return false
+      const result = await importBackupFromFile({ file: tauriBackupFile, storage: tauriStorage }, path)
+      if (result.playerId === playerId.value) await loadPlayer(result.playerId)
+      message.value = {
+        kind: 'success',
+        text: `导入完成:UID ${result.playerId} 新增 ${result.added.length} 条,档案共 ${result.total} 条。`,
+      }
+      return true
+    } catch (error) {
+      message.value = { kind: 'error', text: `导入备份失败:${errorText(error)}` }
+      return false
+    }
+  }
+
+  /** 清空当前档案全部记录(#12,设置弹窗二次确认后调用):删除后当前档案置为空档,
+   *  保守不自动切换到其他档案;档案列表缓存一并刷新 */
+  async function clearCurrentArchive(): Promise<boolean> {
+    const target = playerId.value
+    if (target === null) return false
+    try {
+      const removed = await clearArchive(target)
+      records.value = []
+      try {
+        archives.value = await listArchives()
+      } catch {
+        // 列表刷新失败不掩盖清空结果
+      }
+      message.value = { kind: 'success', text: `已清空 UID ${target} 的 ${removed} 条唤取记录。` }
+      return true
+    } catch (error) {
+      message.value = { kind: 'error', text: `清空数据失败:${errorText(error)}` }
+      return false
+    }
+  }
+
   /** 从已确认的游戏目录提取链接:单 UID 直接走管线;多 UID 暂停,交 UID 选择列表 */
   async function syncFromGameDir(gameDir: string): Promise<boolean> {
     const result = await tauriDirProbe.extractLinks(gameDir)
@@ -285,5 +357,8 @@ export const useRecordsStore = defineStore('records', () => {
     openArchiveList,
     closeArchiveList,
     switchArchive,
+    exportBackup,
+    importBackup,
+    clearCurrentArchive,
   }
 })

@@ -10,6 +10,11 @@ const mocks = vi.hoisted(() => ({
   probeGameDir: vi.fn(),
   extractLinks: vi.fn(),
   pickGameDirectory: vi.fn(),
+  clearArchive: vi.fn(),
+  writeTextFile: vi.fn(),
+  readTextFile: vi.fn(),
+  pickBackupSavePath: vi.fn(),
+  pickBackupOpenPath: vi.fn(),
 }))
 
 vi.mock('@/services/tauriPorts', () => ({
@@ -19,6 +24,10 @@ vi.mock('@/services/tauriPorts', () => ({
   listArchives: mocks.listArchives,
   tauriDirProbe: { probeGameDir: mocks.probeGameDir, extractLinks: mocks.extractLinks },
   pickGameDirectory: mocks.pickGameDirectory,
+  clearArchive: mocks.clearArchive,
+  tauriBackupFile: { writeTextFile: mocks.writeTextFile, readTextFile: mocks.readTextFile },
+  pickBackupSavePath: mocks.pickBackupSavePath,
+  pickBackupOpenPath: mocks.pickBackupOpenPath,
 }))
 
 import PasteImport from './PasteImport.vue'

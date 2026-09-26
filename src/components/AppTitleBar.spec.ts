@@ -11,6 +11,11 @@ const mocks = vi.hoisted(() => ({
   probeGameDir: vi.fn(),
   extractLinks: vi.fn(),
   pickGameDirectory: vi.fn(),
+  clearArchive: vi.fn(),
+  writeTextFile: vi.fn(),
+  readTextFile: vi.fn(),
+  pickBackupSavePath: vi.fn(),
+  pickBackupOpenPath: vi.fn(),
 }))
 
 vi.mock('@/services/tauriPorts', () => ({
@@ -20,6 +25,10 @@ vi.mock('@/services/tauriPorts', () => ({
   listArchives: mocks.listArchives,
   tauriDirProbe: { probeGameDir: mocks.probeGameDir, extractLinks: mocks.extractLinks },
   pickGameDirectory: mocks.pickGameDirectory,
+  clearArchive: mocks.clearArchive,
+  tauriBackupFile: { writeTextFile: mocks.writeTextFile, readTextFile: mocks.readTextFile },
+  pickBackupSavePath: mocks.pickBackupSavePath,
+  pickBackupOpenPath: mocks.pickBackupOpenPath,
 }))
 
 vi.mock('@tauri-apps/api/window', () => ({
@@ -134,6 +143,24 @@ describe('顶栏「记录」抽屉入口(#11)', () => {
     await button.trigger('click')
 
     expect(wrapper.emitted('open-records')).toHaveLength(1)
+  })
+})
+
+describe('顶栏「设置」入口(#12)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+  })
+
+  it('「设置」按钮带 aria 标注,点击向 App 发出 open-settings', async () => {
+    const wrapper = mountBar()
+
+    const button = wrapper.find('button[aria-label="打开设置"]')
+    expect(button.exists()).toBe(true)
+
+    await button.trigger('click')
+
+    expect(wrapper.emitted('open-settings')).toHaveLength(1)
   })
 })
 

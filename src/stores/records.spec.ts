@@ -1,5 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { buildBackup, serializeBackup } from '@/domain/backup'
 import type { GachaRecord } from '@/domain/records'
 import type { PoolQueryRequest } from '@/domain/ports'
 
@@ -11,6 +12,11 @@ const mocks = vi.hoisted(() => ({
   probeGameDir: vi.fn(),
   extractLinks: vi.fn(),
   pickGameDirectory: vi.fn(),
+  clearArchive: vi.fn(),
+  writeTextFile: vi.fn(),
+  readTextFile: vi.fn(),
+  pickBackupSavePath: vi.fn(),
+  pickBackupOpenPath: vi.fn(),
 }))
 
 vi.mock('@/services/tauriPorts', () => ({
@@ -20,6 +26,10 @@ vi.mock('@/services/tauriPorts', () => ({
   listArchives: mocks.listArchives,
   tauriDirProbe: { probeGameDir: mocks.probeGameDir, extractLinks: mocks.extractLinks },
   pickGameDirectory: mocks.pickGameDirectory,
+  clearArchive: mocks.clearArchive,
+  tauriBackupFile: { writeTextFile: mocks.writeTextFile, readTextFile: mocks.readTextFile },
+  pickBackupSavePath: mocks.pickBackupSavePath,
+  pickBackupOpenPath: mocks.pickBackupOpenPath,
 }))
 
 import { useRecordsStore } from './records'
@@ -622,5 +632,182 @@ describe('records store · 切换确认与档案列表(#05)', () => {
     expect(store.playerId).toBe('106485288')
     expect(store.archiveListOpen).toBe(true)
     expect(store.message?.kind).toBe('error')
+  })
+})
+
+describe('records store · 备份恢复与清空(#12)', () => {
+  const BACKUP_PATH = 'D:\\backup\\wuwatool-backup-106485288.json'
+
+  function plainRecord(name: string, time: string): GachaRecord {
+    return {
+      cardPoolType: 1,
+      cardPoolId: 100074,
+      time,
+      name,
+      qualityLevel: 5,
+      resourceId: '21010043',
+      resourceType: '角色',
+    }
+  }
+
+  /** 建立当前档案:UID 106485288,两条记录(loadPlayer 为 store 内部函数,直接置状态) */
+  function seedCurrentArchive() {
+    const db = seedDb()
+    const rows = [
+      plainRecord('长离', '2025-05-01 10:00:00'),
+      plainRecord('折枝', '2025-05-02 10:00:00'),
+    ]
+    db.set('106485288', [...rows])
+    const store = useRecordsStore()
+    store.playerId = '106485288'
+    store.records = rows
+    return { store, db }
+  }
+
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    localStorage.clear()
+  })
+
+  it('导出:当前档案序列化写入所选路径,消息带条数与路径', async () => {
+    const { store } = await seedCurrentArchive()
+    mocks.pickBackupSavePath.mockResolvedValue(BACKUP_PATH)
+    mocks.writeTextFile.mockResolvedValue(undefined)
+
+    const ok = await store.exportBackup()
+
+    expect(ok).toBe(true)
+    expect(mocks.pickBackupSavePath).toHaveBeenCalledWith('106485288')
+    const [path, contents] = mocks.writeTextFile.mock.calls[0] as [string, string]
+    expect(path).toBe(BACKUP_PATH)
+    const backup = JSON.parse(contents) as { playerId: string; records: GachaRecord[] }
+    expect(backup.playerId).toBe('106485288')
+    expect(backup.records).toEqual([
+      plainRecord('长离', '2025-05-01 10:00:00'),
+      plainRecord('折枝', '2025-05-02 10:00:00'),
+    ])
+    expect(store.message?.kind).toBe('success')
+    expect(store.message?.text).toContain('2 条')
+    expect(store.message?.text).toContain(BACKUP_PATH)
+  })
+
+  it('导出:取消保存对话框则不写文件、不提示', async () => {
+    const { store } = await seedCurrentArchive()
+    mocks.pickBackupSavePath.mockResolvedValue(null)
+
+    const ok = await store.exportBackup()
+
+    expect(ok).toBe(false)
+    expect(mocks.writeTextFile).not.toHaveBeenCalled()
+    expect(store.message).toBeNull()
+  })
+
+  it('尚无档案时导出被拦下并给出指引', async () => {
+    const store = useRecordsStore()
+
+    const ok = await store.exportBackup()
+
+    expect(ok).toBe(false)
+    expect(mocks.pickBackupSavePath).not.toHaveBeenCalled()
+    expect(store.message?.kind).toBe('error')
+    expect(store.message?.text).toContain('尚无唤取档案')
+  })
+
+  it('导入:合并入备份所属 UID 档案,当前档案随之刷新并提示新增条数', async () => {
+    const { store, db } = await seedCurrentArchive()
+    // 备份含 1 条既有重复 + 1 条新记录
+    const backup = buildBackup('106485288', [
+      plainRecord('长离', '2025-05-01 10:00:00'),
+      plainRecord('忌炎', '2025-05-03 10:00:00'),
+    ], '2026-09-26T08:00:00.000Z')
+    mocks.pickBackupOpenPath.mockResolvedValue(BACKUP_PATH)
+    mocks.readTextFile.mockResolvedValue(serializeBackup(backup))
+
+    const ok = await store.importBackup()
+
+    expect(ok).toBe(true)
+    expect(mocks.loadRecords).toHaveBeenCalledWith('106485288')
+    expect(db.get('106485288')).toHaveLength(3)
+    expect(store.records).toHaveLength(3)
+    expect(store.playerId).toBe('106485288')
+    expect(store.message?.kind).toBe('success')
+    expect(store.message?.text).toContain('新增 1 条')
+    expect(store.message?.text).toContain('档案共 3 条')
+  })
+
+  it('导入:恢复其他 UID 的档案不切换当前档案,仅提示结果', async () => {
+    const { store, db } = await seedCurrentArchive()
+    const backup = buildBackup('882210234', [plainRecord('维里奈', '2025-04-01 10:00:00')], '2026-09-26T08:00:00.000Z')
+    mocks.pickBackupOpenPath.mockResolvedValue(BACKUP_PATH)
+    mocks.readTextFile.mockResolvedValue(serializeBackup(backup))
+
+    const ok = await store.importBackup()
+
+    expect(ok).toBe(true)
+    expect(db.get('882210234')).toHaveLength(1)
+    // 当前档案展示不受影响
+    expect(store.playerId).toBe('106485288')
+    expect(store.records).toHaveLength(2)
+    expect(store.message?.text).toContain('UID 882210234')
+  })
+
+  it('导入:取消选择文件则不读文件、不提示', async () => {
+    const { store } = await seedCurrentArchive()
+    mocks.pickBackupOpenPath.mockResolvedValue(null)
+
+    const ok = await store.importBackup()
+
+    expect(ok).toBe(false)
+    expect(mocks.readTextFile).not.toHaveBeenCalled()
+    expect(store.message).toBeNull()
+  })
+
+  it('导入:备份文件损坏时报错且不写库', async () => {
+    const { store } = await seedCurrentArchive()
+    mocks.pickBackupOpenPath.mockResolvedValue(BACKUP_PATH)
+    mocks.readTextFile.mockResolvedValue('不是 JSON')
+
+    const ok = await store.importBackup()
+
+    expect(ok).toBe(false)
+    expect(mocks.insertRecords).not.toHaveBeenCalled()
+    expect(store.message?.kind).toBe('error')
+    expect(store.message?.text).toContain('JSON')
+  })
+
+  it('清空:删除当前档案全部记录,展示置为空档并刷新档案列表', async () => {
+    const { store, db } = await seedCurrentArchive()
+    mocks.clearArchive.mockImplementation(async (playerId: string) => {
+      const removed = (db.get(playerId) ?? []).length
+      db.set(playerId, [])
+      return removed
+    })
+    mocks.listArchives.mockResolvedValue([])
+
+    const ok = await store.clearCurrentArchive()
+
+    expect(ok).toBe(true)
+    expect(mocks.clearArchive).toHaveBeenCalledWith('106485288')
+    // 保守不自动切换:当前档案保持选中,展示随库置空
+    expect(store.playerId).toBe('106485288')
+    expect(store.records).toHaveLength(0)
+    expect(store.archives).toEqual([])
+    expect(store.message?.kind).toBe('success')
+    expect(store.message?.text).toContain('UID 106485288')
+    expect(store.message?.text).toContain('2 条')
+  })
+
+  it('清空失败:报错且当前档案展示保持不变', async () => {
+    const { store } = await seedCurrentArchive()
+    mocks.clearArchive.mockRejectedValue(new Error('db locked'))
+
+    const ok = await store.clearCurrentArchive()
+
+    expect(ok).toBe(false)
+    expect(store.playerId).toBe('106485288')
+    expect(store.records).toHaveLength(2)
+    expect(store.message?.kind).toBe('error')
+    expect(store.message?.text).toContain('清空数据失败')
   })
 })

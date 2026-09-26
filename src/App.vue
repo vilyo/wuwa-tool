@@ -10,6 +10,7 @@ import PityLinesPanel from '@/components/PityLinesPanel.vue'
 import PoolTabBar from '@/components/PoolTabBar.vue'
 import PoolVerdictLine from '@/components/PoolVerdictLine.vue'
 import RecordDrawer from '@/components/RecordDrawer.vue'
+import SettingsDialog from '@/components/SettingsDialog.vue'
 import SwitchConfirmDialog from '@/components/SwitchConfirmDialog.vue'
 import UidSelectDialog from '@/components/UidSelectDialog.vue'
 import { poolTabs } from '@/domain/poolTabs'
@@ -20,6 +21,8 @@ const recordsStore = useRecordsStore()
 
 // 记录抽屉开关(#11):纯 UI 状态,App 本地持有;呼出/关闭入口见 AppTitleBar 的 open-records 事件
 const drawerOpen = ref(false)
+// 设置弹窗开关(#12):同上,呼出入口见 AppTitleBar 的 open-settings 事件
+const settingsOpen = ref(false)
 
 // 池页签状态(#09):单画面 UI 状态,App 本地持有,评语行/名册/详情条/汇总行共用一个联动源。
 // 二级选择仅在「该类别实际有数据的 code」中生效,否则回落首个有数据的 code;
@@ -63,7 +66,10 @@ onMounted(() => {
 
 <template>
   <div class="app">
-    <AppTitleBar @open-records="drawerOpen = true" />
+    <AppTitleBar
+      @open-records="drawerOpen = true"
+      @open-settings="settingsOpen = true"
+    />
     <main class="main-area">
       <PasteImport />
       <section
@@ -125,6 +131,11 @@ onMounted(() => {
       :open="drawerOpen"
       :records="recordsStore.records"
       @close="drawerOpen = false"
+    />
+    <!-- 设置弹窗(#12):备份恢复 / 清空数据(二次确认),浮层无障碍在组件内闭环 -->
+    <SettingsDialog
+      :open="settingsOpen"
+      @close="settingsOpen = false"
     />
   </div>
 </template>

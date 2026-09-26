@@ -128,6 +128,36 @@ pub fn list_archives(conn: &Connection) -> rusqlite::Result<Vec<ArchiveSummary>>
     rows.collect()
 }
 
+/// 清空指定 UID 档案的全部记录(#12),返回删除条数;其他档案不受影响
+pub fn clear_archive(conn: &Connection, player_id: &str) -> rusqlite::Result<usize> {
+    conn.execute("DELETE FROM pull_records WHERE player_id = ?1", params![player_id])
+}
+
+/// 备份文件大小上限:正常档案 JSON 远小于此值,防御误选大文件整读进内存
+const MAX_BACKUP_FILE_BYTES: u64 = 64 * 1024 * 1024;
+
+/// 把前端序列化好的备份 JSON 文本写入所选路径(#12 导出);格式与合并在前端 domain
+pub fn export_to_file(path: &str, contents: &str) -> Result<(), String> {
+    std::fs::write(path, contents).map_err(|e| format!("写入备份文件失败:{e}"))
+}
+
+/// 读取备份 JSON 文本(#12 导入),超限拒绝以防误选大文件
+pub fn import_from_file(path: &str) -> Result<String, String> {
+    import_from_file_with_limit(path, MAX_BACKUP_FILE_BYTES)
+}
+
+fn import_from_file_with_limit(path: &str, max_bytes: u64) -> Result<String, String> {
+    let meta = std::fs::metadata(path).map_err(|e| format!("读取备份文件失败:{e}"))?;
+    if meta.len() > max_bytes {
+        return Err(format!(
+            "备份文件过大({} 字节,上限 {} MB),请确认选择的是唤取记录备份文件",
+            meta.len(),
+            MAX_BACKUP_FILE_BYTES / (1024 * 1024)
+        ));
+    }
+    std::fs::read_to_string(path).map_err(|e| format!("读取备份文件失败:{e}"))
+}
+
 /// 连接级配置:WAL(同步中途进程崩溃不留半写)+ busy_timeout(并发写忙等而非立即失败)
 pub fn configure_connection(conn: &Connection) -> rusqlite::Result<()> {
     conn.pragma_update(None, "journal_mode", "WAL")?;
@@ -171,6 +201,25 @@ pub fn db_load_records(app: AppHandle, player_id: String) -> Result<Vec<PullReco
 pub fn db_list_archives(app: AppHandle) -> Result<Vec<ArchiveSummary>, String> {
     let conn = open_db(&app)?;
     list_archives(&conn).map_err(|e| format!("读取档案列表失败:{e}"))
+}
+
+/// 清空指定 UID 档案的全部记录,返回删除条数(设置弹窗二次确认后调用,#12)
+#[tauri::command(async)]
+pub fn db_clear_archive(app: AppHandle, player_id: String) -> Result<usize, String> {
+    let conn = open_db(&app)?;
+    clear_archive(&conn, &player_id).map_err(|e| format!("清空档案失败:{e}"))
+}
+
+/// 导出备份:把前端序列化的备份 JSON 写入用户所选路径(#12)
+#[tauri::command(async)]
+pub fn db_export_to_file(path: String, contents: String) -> Result<(), String> {
+    export_to_file(&path, &contents)
+}
+
+/// 导入备份:读取用户所选备份 JSON 的文本;解析、校验与合并在前端 domain(#12)
+#[tauri::command(async)]
+pub fn db_import_from_file(path: String) -> Result<String, String> {
+    import_from_file(&path)
 }
 
 #[cfg(test)]
@@ -286,6 +335,52 @@ mod tests {
 
         let parsed: PullRecord = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed, original);
+    }
+
+    #[test]
+    fn clear_archive_deletes_only_target_player_and_reports_count() {
+        let conn = memory_db();
+        insert_records(
+            &conn,
+            "106485288",
+            &[
+                record("2025-05-01 10:00:00", "长离", 1),
+                record("2025-05-02 10:00:00", "折枝", 1),
+            ],
+        )
+        .unwrap();
+        insert_records(&conn, "42", &[record("2025-05-03 10:00:00", "他人", 1)]).unwrap();
+
+        assert_eq!(clear_archive(&conn, "106485288").unwrap(), 2);
+        assert!(load_records(&conn, "106485288").unwrap().is_empty());
+        // 其他档案不受影响
+        assert_eq!(load_records(&conn, "42").unwrap().len(), 1);
+        // 再清一次:0 条(幂等)
+        assert_eq!(clear_archive(&conn, "106485288").unwrap(), 0);
+    }
+
+    #[test]
+    fn backup_file_roundtrip_writes_and_reads_same_text() {
+        let path = std::env::temp_dir().join(format!("wuwatool-backup-test-{}.json", std::process::id()));
+        let contents = r#"{"app":"wuwatool","version":1,"records":[]}"#;
+        export_to_file(path.to_str().unwrap(), contents).unwrap();
+        assert_eq!(import_from_file(path.to_str().unwrap()).unwrap(), contents);
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn import_rejects_file_over_size_limit() {
+        let path = std::env::temp_dir().join(format!("wuwatool-backup-test-big-{}.json", std::process::id()));
+        std::fs::write(&path, "x").unwrap();
+        // 正常小文件在合理上限下可读
+        assert_eq!(
+            import_from_file_with_limit(path.to_str().unwrap(), 1024).unwrap(),
+            "x"
+        );
+        // 超限拒绝:不把大文件读进内存
+        let err = import_from_file_with_limit(path.to_str().unwrap(), 0).unwrap_err();
+        assert!(err.contains("过大"));
+        std::fs::remove_file(&path).ok();
     }
 
     #[test]

@@ -11,6 +11,9 @@ pub fn run() {
             db::db_insert_records,
             db::db_load_records,
             db::db_list_archives,
+            db::db_clear_archive,
+            db::db_export_to_file,
+            db::db_import_from_file,
             probe::probe_game_dir,
             probe::extract_gacha_links,
         ])

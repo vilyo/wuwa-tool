@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
 import type { ArchiveSummary } from '@/domain/archives'
+import type { BackupFilePort } from '@/domain/backup'
 import { DomainError, NetworkError } from '@/domain/errors'
 import type { DirProbePort, DirProbeReport, LogProbeResult } from '@/domain/probe'
 import type { ClockPort, GachaApiPort, PoolQueryRequest, StoragePort } from '@/domain/ports'
@@ -73,4 +74,42 @@ export async function pickGameDirectory(): Promise<string | null> {
 /** 档案列表(按最近更新倒序),用于启动时恢复最近档案 */
 export function listArchives(): Promise<ArchiveSummary[]> {
   return invoke<ArchiveSummary[]>('db_list_archives')
+}
+
+/** 清空指定 UID 档案的全部记录(设置弹窗二次确认后调用),返回删除条数 */
+export function clearArchive(playerId: string): Promise<number> {
+  return invoke<number>('db_clear_archive', { playerId })
+}
+
+/** 备份文件读写:经 Rust db_export_to_file / db_import_from_file 落盘(#12) */
+export const tauriBackupFile: BackupFilePort = {
+  async writeTextFile(path: string, contents: string): Promise<void> {
+    await invoke('db_export_to_file', { path, contents })
+  },
+  readTextFile(path: string): Promise<string> {
+    return invoke<string>('db_import_from_file', { path })
+  },
+}
+
+/** 导出备份:系统保存对话框选路径,取消返回 null */
+export async function pickBackupSavePath(playerId: string): Promise<string | null> {
+  const { save } = await import('@tauri-apps/plugin-dialog')
+  const selected = await save({
+    title: '导出唤取记录备份',
+    defaultPath: `wuwatool-backup-${playerId}.json`,
+    filters: [{ name: 'JSON 备份', extensions: ['json'] }],
+  })
+  return typeof selected === 'string' ? selected : null
+}
+
+/** 导入备份:系统打开对话框选 JSON 备份文件,取消返回 null */
+export async function pickBackupOpenPath(): Promise<string | null> {
+  const { open } = await import('@tauri-apps/plugin-dialog')
+  const selected = await open({
+    directory: false,
+    multiple: false,
+    title: '选择唤取记录备份文件',
+    filters: [{ name: 'JSON 备份', extensions: ['json'] }],
+  })
+  return typeof selected === 'string' ? selected : null
 }

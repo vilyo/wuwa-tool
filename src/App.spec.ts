@@ -295,6 +295,38 @@ describe('右栏:保底引线与高光时刻(#10)', () => {
   })
 })
 
+describe('设置弹窗(#12)', () => {
+  it('顶栏「设置」呼出弹窗:数据区入口上屏;ESC 关闭', async () => {
+    const wrapper = mountApp()
+    expect(wrapper.find('.settings-modal').exists()).toBe(false)
+
+    await wrapper.find('button[aria-label="打开设置"]').trigger('click')
+
+    expect(wrapper.find('.settings-modal').exists()).toBe(true)
+    expect(wrapper.find('.settings-modal').attributes('role')).toBe('dialog')
+    expect(wrapper.text()).toContain('导出备份')
+    expect(wrapper.text()).toContain('导入恢复')
+    expect(wrapper.text()).toContain('清空数据')
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await nextTick()
+    expect(wrapper.find('.settings-modal').exists()).toBe(false)
+  })
+
+  it('清空走二次确认:确认层写明 UID,取消后设置弹窗保持打开', async () => {
+    const wrapper = mountApp()
+
+    await wrapper.find('button[aria-label="打开设置"]').trigger('click')
+    await wrapper.findAll('button').find((b) => b.text() === '清空数据')!.trigger('click')
+
+    expect(wrapper.find('.confirm-modal').exists()).toBe(true)
+
+    await wrapper.findAll('button').find((b) => b.text() === '取消')!.trigger('click')
+    expect(wrapper.find('.confirm-modal').exists()).toBe(false)
+    expect(wrapper.find('.settings-modal').exists()).toBe(true)
+  })
+})
+
 describe('记录抽屉(#11)', () => {
   it('顶栏「记录」呼出抽屉:流水行含池名与稀有度;ESC 关闭', async () => {
     const wrapper = mountApp([
