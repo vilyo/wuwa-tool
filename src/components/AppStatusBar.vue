@@ -7,9 +7,21 @@ const version = __APP_VERSION__
 
 <template>
   <footer class="statusbar">
+    <!-- 结果消息(粘贴导入/一键获取/备份等共用出口)>同步进度>自动同步温和提示>常驻提示 -->
+    <span
+      v-if="records.message"
+      class="msg"
+      :class="records.message.kind === 'success' ? 'is-success' : 'is-error'"
+      :title="records.message.text"
+      role="status"
+    >{{ records.message.text }}</span>
+    <span
+      v-else-if="records.syncing && records.syncProgress"
+      role="status"
+    >正在获取 卡池 {{ records.syncProgress.index }}/{{ records.syncProgress.total }}</span>
     <!-- 自动同步静默失败的温和提示(#13):被动文字、不打扰,出现时替代常驻提示位 -->
     <span
-      v-if="records.autoSyncNote"
+      v-else-if="records.autoSyncNote"
       role="status"
     >{{ records.autoSyncNote }}</span>
     <template v-else>
@@ -39,6 +51,23 @@ const version = __APP_VERSION__
 
 .statusbar .num {
   color: var(--text);
+}
+
+/* 消息单行收纳:超长省略号截断,完整内容经 title 悬停可读 */
+.statusbar .msg {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.statusbar .msg.is-success {
+  color: var(--lucky);
+}
+
+.statusbar .msg.is-error {
+  color: var(--danger);
 }
 
 .statusbar .right {

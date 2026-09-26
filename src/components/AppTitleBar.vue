@@ -4,7 +4,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useRecordsStore } from '@/stores/records'
 import { useThemeStore } from '@/stores/theme'
 
-const emit = defineEmits<{ 'open-records': []; 'open-settings': [] }>()
+const emit = defineEmits<{ 'open-records': []; 'open-settings': []; 'open-manual-import': [] }>()
 
 const theme = useThemeStore()
 const recordsStore = useRecordsStore()
@@ -49,6 +49,16 @@ async function quickSync(): Promise<void> {
     >
       <span>UID</span>
       <span class="uid-num">{{ recordsStore.playerId }}</span>
+    </button>
+    <!-- 手动导入入口:粘贴链接/日志文件导入的兜底路径,弹窗化不占主画面 -->
+    <button
+      type="button"
+      class="tbtn"
+      aria-label="手动导入唤取链接"
+      :disabled="busy"
+      @click="emit('open-manual-import')"
+    >
+      <span>手动导入</span>
     </button>
     <button
       type="button"

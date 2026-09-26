@@ -128,6 +128,34 @@ describe('顶栏一键获取入口', () => {
   })
 })
 
+describe('顶栏「手动导入」入口', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+  })
+
+  it('按钮带 aria 标注,点击向 App 发出 open-manual-import', async () => {
+    const wrapper = mountBar()
+
+    const button = wrapper.find('button[aria-label="手动导入唤取链接"]')
+    expect(button.exists()).toBe(true)
+
+    await button.trigger('click')
+
+    expect(wrapper.emitted('open-manual-import')).toHaveLength(1)
+  })
+
+  it('获取/同步期间手动导入入口禁用', async () => {
+    const wrapper = mountBar()
+    useRecordsStore().probing = true
+    await nextTick()
+
+    expect(
+      (wrapper.find('button[aria-label="手动导入唤取链接"]').element as HTMLButtonElement).disabled,
+    ).toBe(true)
+  })
+})
+
 describe('顶栏「记录」抽屉入口(#11)', () => {
   beforeEach(() => {
     setActivePinia(createPinia())

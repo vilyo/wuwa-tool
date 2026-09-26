@@ -49,11 +49,12 @@ function record(overrides: Partial<GachaRecord> = {}): GachaRecord {
 }
 
 describe('应用壳(冒烟)', () => {
-  it('渲染顶栏品牌与入口(一键获取已接线)', () => {
+  it('渲染顶栏品牌与入口(一键获取/手动导入已接线)', () => {
     const wrapper = mountApp()
 
     expect(wrapper.find('.brand-name').text()).toBe('鸣潮工具箱')
     expect(wrapper.text()).toContain('一键获取')
+    expect(wrapper.text()).toContain('手动导入')
     expect(wrapper.text()).toContain('记录')
     expect(wrapper.find('button[aria-label="打开设置"]').exists()).toBe(true)
   })
@@ -63,6 +64,33 @@ describe('应用壳(冒烟)', () => {
 
     expect(wrapper.find('.empty-title').text()).toBe('尚无唤取档案')
     expect(wrapper.find('.empty-hint').text()).toContain('一键获取')
+  })
+
+  it('手动导入弹窗化:主画面无常驻粘贴卡,空态链接可呼出弹窗', async () => {
+    const wrapper = mountApp()
+
+    expect(wrapper.find('.paste-import').exists()).toBe(false)
+    expect(wrapper.find('.manual-modal').exists()).toBe(false)
+    expect(wrapper.find('.empty-manual-link').exists()).toBe(true)
+
+    await wrapper.find('.empty-manual-link').trigger('click')
+
+    expect(wrapper.find('.manual-modal').exists()).toBe(true)
+    expect(wrapper.find('.manual-modal').attributes('role')).toBe('dialog')
+  })
+
+  it('顶栏「手动导入」呼出弹窗:粘贴框与双入口上屏;ESC 关闭', async () => {
+    const wrapper = mountApp()
+
+    await wrapper.find('button[aria-label="手动导入唤取链接"]').trigger('click')
+
+    expect(wrapper.find('.manual-modal').exists()).toBe(true)
+    expect(wrapper.find('.manual-input').exists()).toBe(true)
+    expect(wrapper.text()).toContain('从日志文件导入')
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await nextTick()
+    expect(wrapper.find('.manual-modal').exists()).toBe(false)
   })
 
   it('状态栏常驻显示延迟提示、6 个月窗口、隐私声明与版本号', () => {
@@ -401,7 +429,7 @@ describe('启动自动同步(#13)', () => {
       expect(wrapper.find('.statusbar').text()).toContain('自动同步失败')
     })
     // 静默:错误不进消息横幅打扰
-    expect(wrapper.find('.paste-message').exists()).toBe(false)
+    expect(wrapper.find('.manual-message').exists()).toBe(false)
   })
 
   it('无缓存链接:启动不做任何同步请求', async () => {

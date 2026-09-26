@@ -5,7 +5,7 @@ import AppTitleBar from '@/components/AppTitleBar.vue'
 import ArchiveListDialog from '@/components/ArchiveListDialog.vue'
 import FiveStarRoster from '@/components/FiveStarRoster.vue'
 import HighlightMoments from '@/components/HighlightMoments.vue'
-import PasteImport from '@/components/PasteImport.vue'
+import ManualImportDialog from '@/components/ManualImportDialog.vue'
 import PityLinesPanel from '@/components/PityLinesPanel.vue'
 import PoolTabBar from '@/components/PoolTabBar.vue'
 import PoolVerdictLine from '@/components/PoolVerdictLine.vue'
@@ -23,6 +23,8 @@ const recordsStore = useRecordsStore()
 const drawerOpen = ref(false)
 // 设置弹窗开关(#12):同上,呼出入口见 AppTitleBar 的 open-settings 事件
 const settingsOpen = ref(false)
+// 手动导入弹窗开关:顶栏次级入口与空态链接呼出;手动粘贴/日志文件导入不常驻主画面
+const manualImportOpen = ref(false)
 
 // 池页签状态(#09):单画面 UI 状态,App 本地持有,评语行/名册/详情条/汇总行共用一个联动源。
 // 二级选择仅在「该类别实际有数据的 code」中生效,否则回落首个有数据的 code;
@@ -71,9 +73,9 @@ onMounted(async () => {
     <AppTitleBar
       @open-records="drawerOpen = true"
       @open-settings="settingsOpen = true"
+      @open-manual-import="manualImportOpen = true"
     />
     <main class="main-area">
-      <PasteImport />
       <section
         v-if="recordsStore.records.length === 0"
         class="empty-state"
@@ -89,6 +91,13 @@ onMounted(async () => {
         <p class="empty-hint">
           在游戏内打开一次「唤取记录」页,然后点击顶栏「一键获取」,即可导入你的唤取记录。
         </p>
+        <button
+          type="button"
+          class="empty-manual-link"
+          @click="manualImportOpen = true"
+        >
+          或手动粘贴链接 / 从日志文件导入
+        </button>
       </section>
       <template v-else>
         <!-- 池页签栏(#09):四固定类别 + 类别内二级切换 + 未知池兜底页签,右侧汇总指标随池联动 -->
@@ -124,6 +133,11 @@ onMounted(async () => {
       </template>
     </main>
     <AppStatusBar />
+    <!-- 手动导入弹窗:粘贴链接/日志文件导入(置于 UID 选择等浮层之前,让位时后开的浮层在上) -->
+    <ManualImportDialog
+      :open="manualImportOpen"
+      @close="manualImportOpen = false"
+    />
     <!-- 多 UID 选择 / 切换确认 / 档案列表(#05):无待办状态时不渲染 -->
     <UidSelectDialog />
     <SwitchConfirmDialog />
@@ -232,5 +246,22 @@ onMounted(async () => {
   font-size: 13px;
   color: var(--text-2);
   line-height: 1.8;
+}
+
+/* 空态的手动导入退路:一键获取失败(如日志读取受限)时仍可手动粘贴链接 */
+.empty-manual-link {
+  margin-top: 2px;
+  border: none;
+  background: none;
+  padding: 2px 4px;
+  font-size: 13px;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+.empty-manual-link:hover {
+  color: var(--text);
 }
 </style>
