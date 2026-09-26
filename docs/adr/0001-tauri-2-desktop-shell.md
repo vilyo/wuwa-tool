@@ -2,6 +2,8 @@
 
 安装包体积被列为硬性优先级（Electron ~100MB 不可接受），且开发/调试必须在 macOS 上完成、仅发布构建在 Windows 机上进行。Tauri 2（Rust 壳 + Web 前端）满足全部约束：macOS 上开发调试、Windows 上 `tauri build` 发布，安装包 ~10MB。
 
+> 2026-09-26 更新：Windows 发布构建改走 GitHub Actions 云端构建（`windows-latest`，见 ADR-0008 与 `.github/workflows/build-windows.yml`），不再要求自有 Windows 构建机；「安装包」按 ADR-0008 理解为「便携版 zip」。
+
 决定：Tauri 2 + TypeScript 前端，Rust 面最小化（日志目录扫描/文件读取 + 官方 HTTP、SQLite 插件装配），业务逻辑全部放在前端。
 
 ## Considered Options

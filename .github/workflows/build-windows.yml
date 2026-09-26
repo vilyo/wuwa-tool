@@ -1,0 +1,63 @@
+# Windows 便携版 CI 构建(ADR-0008:仅便携 zip,无安装器):
+# 云端 windows-latest 上跑 npm run tauri build,产出 zip 供下载;
+# 手动触发(workflow_dispatch)用于日常验证,push v* tag 时附带发布 Release。
+# 产物为未签名 exe,首次运行会有 SmartScreen 提示(见 ADR-0008 Consequences)。
+name: build-windows
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write # tag 触发时用于上传 Release
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: 安装依赖
+        run: npm ci
+
+      # 含前端 vue-tsc + vite build(beforeBuildCommand)与 Rust release 编译;
+      # bundle.targets 为 [],不打包安装器,产物即 src-tauri/target/release/wuwatool.exe
+      - name: 构建
+        run: npm run tauri build
+
+      - name: 组装便携版 zip
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          $dir = "wuwatool-$version"
+          New-Item -ItemType Directory -Path $dir
+          Copy-Item "src-tauri\target\release\wuwatool.exe" $dir
+          Compress-Archive -Path $dir -DestinationPath "$dir.zip"
+          $mb = [math]::Round((Get-Item "$dir.zip").Length / 1MB, 2)
+          "zip 体积: $mb MB"
+          if ($mb -gt 15) { throw "超过 15MB 验收上限(BUILD-WINDOWS.md 验收清单 #2)" }
+          "ZIP_PATH=$dir.zip" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-portable
+          path: ${{ env.ZIP_PATH }}
+
+      - name: 附到 GitHub Release(仅 tag 触发时)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP_PATH }}

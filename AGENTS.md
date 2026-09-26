@@ -12,7 +12,7 @@
 - 工程已初始化（#01 应用骨架）：Tauri 2 + Vue 3 + TypeScript + Pinia，设计系统 v11 tokens 已落地；票务进度见 `.scratch/v1-wuwatool/issues/`。
 - 设计已定稿：交互与视觉以 docs/prototype/index.html（定稿原型）与 docs/design/DESIGN-SYSTEM.md（v11）为准；编年史为五星卡片网格名册（见 docs/adr/0007）。
 - 正式 Spec 已发布：`.scratch/v1-wuwatool/spec.md`（Status: ready-for-agent）；需求全文见 docs/PRD.md（V1.0 定稿）。
-- 开发在 macOS 进行，发布构建仅在 Windows 机上执行（见 docs/adr/0001）；本机 npm 走 nvm、cargo 在 `~/.cargo/bin`，非交互 shell 需先把两者加入 PATH。
+- 开发在 macOS 进行；Windows 发布构建走 GitHub Actions 云端构建（`.github/workflows/build-windows.yml`，产物为便携 zip，见 docs/adr/0008），Windows 本机构建保留为备选（见 docs/BUILD-WINDOWS.md）；本机 npm 走 nvm、cargo 在 `~/.cargo/bin`，非交互 shell 需先把两者加入 PATH。
 
 ## Agent skills
 

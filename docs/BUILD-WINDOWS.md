@@ -1,7 +1,7 @@
 # Windows 便携版构建与 V1 真机验收教程
 
-> 适用：在 Windows 10/11 x64 真机上把鸣潮工具箱（wuwatool）构建为便携版 zip 并完成 V1 人工验收。
-> macOS 开发机无法交叉编译 MSVC 目标，此步骤须在 Windows 机执行（ADR-0001、ADR-0008）。
+> 适用：把鸣潮工具箱（wuwatool）构建为便携版 zip（第二节：GitHub Actions 云端构建为默认，Windows 本机构建为备选），并完成 V1 真机人工验收（第四节，仍需 Windows 真机）。
+> macOS 开发机无法交叉编译 MSVC 目标；Windows 编译由 GitHub Actions 云端机器完成（2026-09-26 起，见 ADR-0008），不再要求自有 Windows 构建机。
 
 ## 一、构建环境准备（一次性）
 
@@ -12,7 +12,19 @@
 
 ## 二、构建便携版
 
-在仓库根目录（PowerShell）：
+### 方式一：GitHub Actions 云端构建（推荐，无需自有 Windows 机）
+
+1. 把仓库推到 GitHub（workflow 文件：`.github/workflows/build-windows.yml`）。
+2. 触发二选一：
+   - **手动验证**：仓库页 → Actions → `build-windows` → Run workflow；
+   - **正式发版**：`git tag v<版本号> && git push --tags`，zip 会自动挂到该 tag 的 Release 页。
+3. 构建完成后，在该次运行页面底部 **Artifacts** 下载 `windows-portable`（即已组装好的便携版 zip）。
+
+说明：首次构建约 10–20 分钟（下载并编译全部 Rust 依赖），之后走缓存约 5–8 分钟；CI 会顺带跑 vue-tsc 类型检查；zip 体积超 15MB 时构建直接失败（对应验收清单 #2）。仓库公开则免费不限次；私有仓库有每月免费额度（Windows 计费分钟按 2 倍计）。
+
+### 方式二：Windows 机本机构建（备选）
+
+在 Windows 10/11 真机仓库根目录（PowerShell）：
 
 ```powershell
 npm install            # 首次安装依赖
@@ -25,6 +37,8 @@ npm run tauri build    # 先执行前端 vue-tsc + vite build，再编译 Rust �
 - `tauri.conf.json` 的 `bundle.targets` 为空数组 `[]`，即**不做任何安装器打包**——原始 exe 就是便携版本体（前端资源已嵌入二进制，无外部 DLL 依赖，仅要求系统有 WebView2）。
 
 ## 三、组装便携版 zip（ADR-0008）
+
+> 方式一（CI 构建）下本步由 workflow 自动完成并产出 zip，仅方式二（本机构建）需手动操作。
 
 1. 新建文件夹 `wuwatool-<版本号>`（版本号与 `package.json` / `src-tauri/tauri.conf.json` 的 `version` 一致，发版时**两处需同步**）。
 2. 拷入 `wuwatool.exe`，可附一份 `使用说明.txt`。
