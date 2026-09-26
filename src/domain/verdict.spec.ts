@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import type { GachaRecord } from './records'
 import { overallStats, poolStats } from './stats'
 import {
-  DEFAULT_VERDICT_POOL_CODE,
   degreeOf,
   EXPECTED_PULLS_LIMITED_CHAR,
   expectedReferencePulls,
@@ -224,7 +223,7 @@ describe('新手·感恩池不计入欧非总评:评级「—」、评语「启�
   })
 })
 
-describe('未知池与默认当前池', () => {
+describe('未知池兜底', () => {
   it('未知 code 不给欧非评级(保守兜底,不编造评语)', () => {
     const records = [
       ...fillers(5, 99),
@@ -234,10 +233,6 @@ describe('未知池与默认当前池', () => {
     expect(verdict.rank).toBe('—')
     expect(verdict.avgPulls).toBeNull()
     expect(verdict.offRate).toBeNull()
-  })
-
-  it('默认评语池 = 角色精准调谐(code 1)', () => {
-    expect(DEFAULT_VERDICT_POOL_CODE).toBe(1)
   })
 })
 

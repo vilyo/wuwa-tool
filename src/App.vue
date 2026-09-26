@@ -1,17 +1,54 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import AppStatusBar from '@/components/AppStatusBar.vue'
 import AppTitleBar from '@/components/AppTitleBar.vue'
 import ArchiveListDialog from '@/components/ArchiveListDialog.vue'
 import FiveStarRoster from '@/components/FiveStarRoster.vue'
 import PasteImport from '@/components/PasteImport.vue'
+import PoolTabBar from '@/components/PoolTabBar.vue'
 import PoolVerdictLine from '@/components/PoolVerdictLine.vue'
 import RecordList from '@/components/RecordList.vue'
 import SwitchConfirmDialog from '@/components/SwitchConfirmDialog.vue'
 import UidSelectDialog from '@/components/UidSelectDialog.vue'
+import { poolTabs } from '@/domain/poolTabs'
+import type { PoolCategory } from '@/domain/pools'
 import { useRecordsStore } from '@/stores/records'
 
 const recordsStore = useRecordsStore()
+
+// 池页签状态(#09):单画面 UI 状态,App 本地持有,评语行/名册/详情条/汇总行共用一个联动源。
+// 二级选择仅在「该类别实际有数据的 code」中生效,否则回落首个有数据的 code;
+// 类别完全无数据时回退类别主池(= T07 默认池假设的收口),内容区呈现空态。
+const activeCategory = ref<PoolCategory>('limitedChar')
+const selectedCode = ref<number | null>(null)
+
+const tabs = computed(() => poolTabs(recordsStore.records))
+// activeCategory 指向的页签不存在时(如未知池记录随档案切换消失)回落到首个页签
+const activeTab = computed(
+  () => tabs.value.find((tab) => tab.category === activeCategory.value) ?? tabs.value[0]!,
+)
+const currentPoolCode = computed(() => {
+  const codes = activeTab.value.codesWithData
+  if (selectedCode.value !== null && codes.includes(selectedCode.value)) return selectedCode.value
+  return codes[0] ?? activeTab.value.fallbackCode
+})
+
+// 档案切换后页签集合可能缩小(未知池页签消失):归一化选中类别,避免残留指向已消失的页签
+watch(tabs, (list) => {
+  if (!list.some((tab) => tab.category === activeCategory.value)) {
+    activeCategory.value = list[0]!.category
+    selectedCode.value = null
+  }
+})
+
+function selectCategory(category: PoolCategory): void {
+  activeCategory.value = category
+  selectedCode.value = null // 二级选择随页签重置,回落首个有数据的池
+}
+
+function selectPool(code: number): void {
+  selectedCode.value = code
+}
 
 // 启动时恢复最近档案(重启后数据完整可读)
 onMounted(() => {
@@ -41,10 +78,24 @@ onMounted(() => {
         </p>
       </section>
       <template v-else>
-        <!-- 本池评语行(#07):V1 默认角色精准调谐池,页签联动由 #09 接管 -->
-        <PoolVerdictLine :records="recordsStore.records" />
-        <!-- 五星编年史名册(#08):名册区域内部滚动 -->
-        <FiveStarRoster :records="recordsStore.records" />
+        <!-- 池页签栏(#09):四固定类别 + 类别内二级切换 + 未知池兜底页签,右侧汇总指标随池联动 -->
+        <PoolTabBar
+          :records="recordsStore.records"
+          :active-category="activeCategory"
+          :pool-code="currentPoolCode"
+          @select-category="selectCategory"
+          @select-pool="selectPool"
+        />
+        <!-- 本池评语行(#07):随页签状态联动 -->
+        <PoolVerdictLine
+          :records="recordsStore.records"
+          :pool-code="currentPoolCode"
+        />
+        <!-- 五星编年史名册(#08):随页签状态联动,名册区域内部滚动 -->
+        <FiveStarRoster
+          :records="recordsStore.records"
+          :pool-code="currentPoolCode"
+        />
         <!-- 极简流水(#02 过渡件):正式流水抽屉在 #11,暂以限高滚动收纳在名册下方 -->
         <div class="record-list-wrap">
           <RecordList :records="recordsStore.records" />

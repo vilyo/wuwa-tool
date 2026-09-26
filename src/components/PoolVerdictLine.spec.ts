@@ -43,10 +43,10 @@ function history(segments: Array<[pullsBefore: number, five: string]>): GachaRec
 }
 
 describe('本池评语行:评级菱章 + 评语 + 平均出货 + 歪率', () => {
-  it('随当前池(默认角色精准调谐 code 1)数据渲染评级、评语、平均出货与歪率', () => {
+  it('随传入池 code(角色精准调谐 1)数据渲染评级、评语、平均出货与歪率', () => {
     // 40 抽歪(维里奈在常驻名单) + 40 抽 UP(忌炎) → 平均 40 → A,歪率 50%
     const wrapper = mount(PoolVerdictLine, {
-      props: { records: history([[39, '维里奈'], [39, '忌炎']]) },
+      props: { records: history([[39, '维里奈'], [39, '忌炎']]), poolCode: 1 },
     })
 
     const rank = wrapper.find('.rank-mini')
@@ -59,7 +59,10 @@ describe('本池评语行:评级菱章 + 评语 + 平均出货 + 歪率', () => 
 
   it('歪率 ≥80% 时追加修正项徽章「命运的反面宠儿」', () => {
     const wrapper = mount(PoolVerdictLine, {
-      props: { records: history([[39, '维里奈'], [39, '维里奈'], [39, '维里奈'], [39, '维里奈'], [39, '忌炎']]) },
+      props: {
+        records: history([[39, '维里奈'], [39, '维里奈'], [39, '维里奈'], [39, '维里奈'], [39, '忌炎']]),
+        poolCode: 1,
+      },
     })
 
     expect(wrapper.find('.vtext').text()).toBe('欧洲常驻居民')
@@ -71,7 +74,7 @@ describe('本池评语行:评级菱章 + 评语 + 平均出货 + 歪率', () => 
 
   it('≤10 抽出货追加彩蛋徽章(原型文案「出手如电 · N 抽名」)', () => {
     const wrapper = mount(PoolVerdictLine, {
-      props: { records: history([[8, '忌炎'], [39, '忌炎'], [39, '维里奈']]) },
+      props: { records: history([[8, '忌炎'], [39, '忌炎'], [39, '维里奈']]), poolCode: 1 },
     })
 
     const badges = wrapper.findAll('.badge')
@@ -83,7 +86,7 @@ describe('本池评语行:评级菱章 + 评语 + 平均出货 + 歪率', () => 
 describe('无评级场合', () => {
   it('样本不足:评级「—」隐藏菱章,评语「样本不足，多抽点再来」', () => {
     const wrapper = mount(PoolVerdictLine, {
-      props: { records: history([[39, '忌炎']]) },
+      props: { records: history([[39, '忌炎']]), poolCode: 1 },
     })
 
     const rank = wrapper.find('.rank-mini')
@@ -111,9 +114,9 @@ describe('无评级场合', () => {
 })
 
 describe('随当前池数据刷新', () => {
-  it('records 变化后评语行整体更新(页签联动前的最小联动能力)', async () => {
+  it('records 变化后评语行整体更新(随页签状态联动)', async () => {
     const wrapper = mount(PoolVerdictLine, {
-      props: { records: history([[39, '维里奈'], [39, '忌炎']]) },
+      props: { records: history([[39, '维里奈'], [39, '忌炎']]), poolCode: 1 },
     })
     expect(wrapper.find('.rank-mini').text()).toBe('A')
 

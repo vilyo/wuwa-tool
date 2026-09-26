@@ -1,4 +1,5 @@
 import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { describe, expect, it, vi } from 'vitest'
 import type { GachaRecord } from '@/domain/records'
@@ -95,6 +96,149 @@ describe('本池评语行(#07)', () => {
     expect(line.find('.rank-mini').text()).toBe('A')
     expect(line.find('.vtext').text()).toBe('欧洲常驻居民')
     expect(line.find('.vsub').text()).toBe('平均出货 40.0 抽 · 歪率 50%')
+  })
+})
+
+describe('池页签与联动汇总(#09)', () => {
+  /** 库内口径(时间倒序)的多池种子流水 */
+  function poolHistory(
+    segments: Array<[pullsBefore: number, five: string]>,
+    poolCode: number,
+    resourceType = '角色',
+  ): GachaRecord[] {
+    const asc: GachaRecord[] = []
+    for (const [pullsBefore, five] of segments) {
+      for (let i = 0; i < pullsBefore; i += 1) asc.push(record({ cardPoolType: poolCode }))
+      asc.push(
+        record({ cardPoolType: poolCode, name: five, qualityLevel: 5, resourceType }),
+      )
+    }
+    return [...asc].reverse()
+  }
+
+  it('默认页签 = 角色精准调谐:汇总行、评语行、名册、详情条都是池 1 数据', () => {
+    const records = [
+      ...poolHistory([[39, '维里奈'], [39, '忌炎']], 1),
+      ...poolHistory([[20, '千古洑流']], 2, '武器'),
+      ...poolHistory([[9, '凌阳']], 5),
+    ]
+    const wrapper = mountApp(records)
+
+    const tabs = wrapper.findAll('.pool-tab')
+    expect(tabs.map((tab) => tab.text())).toEqual([
+      '角色精准调谐',
+      '武器精准调谐',
+      '常驻调谐',
+      '新手·感恩',
+    ])
+    expect(tabs[0]!.classes()).toContain('is-active')
+    expect(wrapper.find('.tabs-status').text()).toContain('总唤取 80')
+    expect(wrapper.find('.verdict-line .vtext').text()).toBe('欧洲常驻居民')
+    expect(wrapper.find('.detail-strip').text()).toContain('忌炎')
+    expect(wrapper.find('.detail-strip').text()).toContain('角色精准调谐')
+  })
+
+  it('切到武器精准调谐:汇总/评语/名册/详情条联动,无歪率、无 62 抽期望刻线', async () => {
+    const records = [
+      ...poolHistory([[39, '维里奈'], [39, '忌炎']], 1),
+      ...poolHistory([[20, '千古洑流']], 2, '武器'),
+    ]
+    const wrapper = mountApp(records)
+
+    await wrapper.findAll('.pool-tab')[1]!.trigger('click')
+
+    const stats = wrapper.find('.tabs-status').text()
+    expect(stats).toContain('总唤取 21')
+    expect(stats).toContain('平均出货 21.0')
+    expect(stats).not.toContain('歪率')
+    expect(wrapper.find('.verdict-line .vsub').text()).not.toContain('歪率')
+    expect(wrapper.find('.detail-strip').text()).toContain('千古洑流')
+    expect(wrapper.find('.detail-strip').text()).toContain('武器精准调谐')
+    expect(wrapper.find('.ref-mark').exists()).toBe(false)
+  })
+
+  it('切到无数据的常驻调谐:页签保留,二级切换不出现,内容区空态', async () => {
+    const records = poolHistory([[39, '维里奈'], [39, '忌炎']], 1)
+    const wrapper = mountApp(records)
+
+    await wrapper.findAll('.pool-tab')[2]!.trigger('click')
+
+    expect(wrapper.find('.pool-sub').exists()).toBe(false)
+    expect(wrapper.find('.tabs-status').text()).toContain('平均出货 —')
+    expect(wrapper.find('.roster-empty').text()).toBe('本池暂无五星记录')
+  })
+
+  it('切到新手·感恩:评级「—」、评语「启程之人」、说明替代平均出货', async () => {
+    const records = [
+      ...poolHistory([[39, '忌炎']], 1),
+      ...poolHistory([[9, '凌阳']], 5),
+    ]
+    const wrapper = mountApp(records)
+
+    await wrapper.findAll('.pool-tab')[3]!.trigger('click')
+
+    expect(wrapper.find('.rank-mini').classes()).toContain('none')
+    expect(wrapper.find('.vtext').text()).toBe('启程之人')
+    expect(wrapper.find('.vsub').text()).toBe('新手池规则特殊，不计入欧非总评')
+    expect(wrapper.find('.tabs-status').text()).toContain('总唤取 10')
+  })
+
+  it('未知池动态兜底页签:有未知 code 记录时出现并做浅统计,无记录时不占位', async () => {
+    const withUnknown = mountApp([
+      ...poolHistory([[39, '忌炎']], 1),
+      ...poolHistory([[4, '未知五星']], 99),
+    ])
+    const tabs = withUnknown.findAll('.pool-tab')
+    expect(tabs).toHaveLength(5)
+    expect(tabs[4]!.text()).toBe('未知调谐池')
+
+    await tabs[4]!.trigger('click')
+    expect(withUnknown.find('.vtext').text()).toBe('未知调谐池')
+    expect(withUnknown.find('.rank-mini').classes()).toContain('none')
+    expect(withUnknown.find('.tabs-status').text()).toContain('总唤取 5')
+
+    const without = mountApp(poolHistory([[39, '忌炎']], 1))
+    expect(without.findAll('.pool-tab')).toHaveLength(4)
+  })
+
+  it('停在未知池页签时档案切换为无未知记录的档案:选中类别归一化回首个页签', async () => {
+    const wrapper = mountApp([
+      ...poolHistory([[39, '忌炎']], 1),
+      ...poolHistory([[4, '未知五星']], 99),
+    ])
+    await wrapper.findAll('.pool-tab')[4]!.trigger('click')
+    expect(wrapper.findAll('.pool-tab')[4]!.classes()).toContain('is-active')
+
+    // 模拟切换档案:records 整体替换,未知池记录消失
+    useRecordsStore().records = poolHistory([[39, '忌炎']], 1)
+    await nextTick()
+
+    const tabs = wrapper.findAll('.pool-tab')
+    expect(tabs).toHaveLength(4)
+    expect(tabs[0]!.classes()).toContain('is-active')
+  })
+
+  it('角色系档案含多池 code 时二级切换:切到池 8 后名册与详情条随池联动', async () => {
+    const records = [
+      ...poolHistory([[39, '维里奈'], [39, '忌炎']], 1),
+      ...poolHistory([[19, '守岸人']], 8),
+    ]
+    const wrapper = mountApp(records)
+    const subs = wrapper.findAll('.pool-sub-tab')
+    expect(subs.map((sub) => sub.text())).toEqual(['角色精准调谐', '角色新旅调谐'])
+
+    await subs[1]!.trigger('click')
+
+    expect(wrapper.find('.tabs-status').text()).toContain('总唤取 20')
+    expect(wrapper.find('.detail-strip').text()).toContain('守岸人')
+    expect(wrapper.find('.detail-strip').text()).toContain('角色新旅调谐')
+  })
+
+  it('角色系只有非主池(code 8)有数据时,默认选中回落到首个有数据的 code', () => {
+    const wrapper = mountApp(poolHistory([[19, '守岸人']], 8))
+
+    expect(wrapper.find('.tabs-status').text()).toContain('总唤取 20')
+    expect(wrapper.find('.detail-strip').text()).toContain('角色新旅调谐')
   })
 })
 

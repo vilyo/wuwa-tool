@@ -132,6 +132,3 @@ export function poolVerdict(stats: PoolStats): PoolVerdict {
   }
   return { rank: tier.rank, text: tier.text, avgPulls, offRate, modifiers, note: null }
 }
-
-/** V1 默认评语池:角色精准调谐(code 1);页签联动由 #09 接管 */
-export const DEFAULT_VERDICT_POOL_CODE = 1

@@ -4,24 +4,20 @@ import { recordKey, type GachaRecord } from '@/domain/records'
 import { poolCategory } from '@/domain/pools'
 import { rosterCards, rosterSummary, type RosterCardVM } from '@/domain/roster'
 import { poolStats } from '@/domain/stats'
-import { DEFAULT_VERDICT_POOL_CODE } from '@/domain/verdict'
 import FiveStarCard from './FiveStarCard.vue'
 import FiveStarDetailStrip from './FiveStarDetailStrip.vue'
 
 /**
  * 五星编年史名册(ADR-0007,定稿原型 .roster-head + .roster + .detail-strip):
  * 头部(标题 + 五星计数 + 汇总芯片 + 62 抽期望图例)、时间倒序卡片网格、底部详情条。
- * 当前池 V1 默认角色精准调谐,页签联动由 #09 接管;名册区域内部滚动,主画面布局不随卡数增长。
+ * 当前池由 #09 页签状态给定(App 传入);名册区域内部滚动,主画面布局不随卡数增长。
  */
-const props = withDefaults(
-  defineProps<{
-    /** 当前档案的全部流水(时间倒序,统计口径自行排序) */
-    records: GachaRecord[]
-    /** 当前池 code */
-    poolCode?: number
-  }>(),
-  { poolCode: DEFAULT_VERDICT_POOL_CODE },
-)
+const props = defineProps<{
+  /** 当前档案的全部流水(时间倒序,统计口径自行排序) */
+  records: GachaRecord[]
+  /** 当前池 code(#09 页签联动) */
+  poolCode: number
+}>()
 
 const cards = computed(() => rosterCards(poolStats(props.records, props.poolCode)))
 const summary = computed(() => rosterSummary(cards.value))

@@ -2,21 +2,18 @@
 import { computed } from 'vue'
 import type { GachaRecord } from '@/domain/records'
 import { poolStats } from '@/domain/stats'
-import { DEFAULT_VERDICT_POOL_CODE, poolVerdict } from '@/domain/verdict'
+import { poolVerdict } from '@/domain/verdict'
 
 /**
  * 本池评语行(定稿原型 .verdictline):评级菱章字母 + 评语 + 平均出货 + 歪率(+ 修正项徽章)。
- * V1 当前池默认角色精准调谐(code 1),页签联动由 #09 接管;统计与评语全部来自 domain 纯函数。
+ * 当前池由 #09 页签状态给定(App 传入),统计与评语全部来自 domain 纯函数。
  */
-const props = withDefaults(
-  defineProps<{
-    /** 当前档案的全部流水(时间倒序,组件内按口径自行排序) */
-    records: GachaRecord[]
-    /** 当前池 code;V1 默认角色精准调谐 */
-    poolCode?: number
-  }>(),
-  { poolCode: DEFAULT_VERDICT_POOL_CODE },
-)
+const props = defineProps<{
+  /** 当前档案的全部流水(时间倒序,组件内按口径自行排序) */
+  records: GachaRecord[]
+  /** 当前池 code(#09 页签联动) */
+  poolCode: number
+}>()
 
 const verdict = computed(() => poolVerdict(poolStats(props.records, props.poolCode)))
 </script>
