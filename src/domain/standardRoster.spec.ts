@@ -12,7 +12,6 @@ function record(overrides: Partial<GachaRecord>): GachaRecord {
     qualityLevel: 5,
     resourceId: '21020041',
     resourceType: '角色',
-    count: 1,
     ...overrides,
   }
 }

@@ -92,13 +92,9 @@ export async function syncPoolCode(
 
   const incoming: GachaRecord[] = toDomainRecords(envelope.data ?? [], poolCode, cardPoolIdFromLink(link))
   const existing = await deps.storage.loadRecords(link.playerId)
-  const { records, added, updated } = mergeRecords(existing, incoming)
+  const { records, added } = mergeRecords(existing, incoming)
   if (added.length > 0) {
     await deps.storage.insertRecords(link.playerId, added)
-  }
-  // 同键 count 升级(如旧库 count=1 而官方返回 count>1):按键升级,使全量重同步可自愈(#15)
-  if (updated.length > 0) {
-    await deps.storage.updateRecordCounts(link.playerId, updated)
   }
   return { poolCode, fetched: incoming.length, added: added.length, total: records.length }
 }

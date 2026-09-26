@@ -34,16 +34,13 @@ export const tauriGachaApi: GachaApiPort = {
   },
 }
 
-/** 经 Rust db_* 命令读写本地 SQLite(写入侧单事务 INSERT OR IGNORE,count 升级单事务 UPDATE) */
+/** 经 Rust db_* 命令读写本地 SQLite(写入侧单事务,同键多抽由 seq 区分) */
 export const tauriStorage: StoragePort = {
   loadRecords(playerId: string): Promise<GachaRecord[]> {
     return invoke<GachaRecord[]>('db_load_records', { playerId })
   },
   insertRecords(playerId: string, records: readonly GachaRecord[]): Promise<number> {
     return invoke<number>('db_insert_records', { playerId, records: [...records] })
-  },
-  updateRecordCounts(playerId: string, records: readonly GachaRecord[]): Promise<number> {
-    return invoke<number>('db_update_record_counts', { playerId, records: [...records] })
   },
 }
 

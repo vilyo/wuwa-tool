@@ -24,7 +24,6 @@ function record(overrides: Partial<GachaRecord> = {}): GachaRecord {
     qualityLevel: 3,
     resourceId: '21050001',
     resourceType: '武器',
-    count: 1,
     ...overrides,
   }
 }
@@ -266,46 +265,5 @@ describe('总评数据集 = 全部角色系限定池(1/8/10/12)合并', () => {
     expect(stats.avgPulls).toBeCloseTo(7.5, 10)
     expect(stats.offRate).toBe(0.5)
     expect(stats.cardPoolType).toBeNull() // 跨池合计,无单一池 code
-  })
-})
-
-describe('统计口径按 count 加权(#15):一条记录 = count 抽', () => {
-  it('totalPulls = Σcount 而非记录条数', () => {
-    const records = [
-      record({ count: 3 }),
-      record({ count: 4, time: stamp(9999) }),
-    ]
-    // 2 条记录,count 合计 7
-    expect(poolStats(records, 1).totalPulls).toBe(7)
-  })
-
-  it('出货抽数逐条累加 count:同秒多抽合并的垫抽计入出货', () => {
-    const records = descOrder([
-      record({ count: 2 }),
-      record({ count: 3 }),
-      record({ name: '忌炎', qualityLevel: 5, resourceType: '角色' }), // 2+3+1(五星恒 1)= 6 抽出货
-    ])
-    const stats = poolStats(records, 1)
-
-    expect(stats.fives[0]!.pulls).toBe(6)
-    expect(stats.avgPulls).toBe(6)
-  })
-
-  it('保底进度逐条累加 count', () => {
-    const records = descOrder([
-      record({ name: '忌炎', qualityLevel: 5, resourceType: '角色' }),
-      record({ count: 3 }),
-      record({ count: 4 }),
-    ])
-    const stats = poolStats(records, 1)
-
-    expect(stats.pity.current).toBe(7)
-  })
-
-  it('池内无五星:垫抽数 = 全部记录 Σcount', () => {
-    expect(poolStats([record({ count: 3 }), record({ count: 5 })], 1).pity).toEqual({
-      current: 8,
-      hard: 80,
-    })
   })
 })

@@ -1,7 +1,7 @@
 /**
  * 高光时刻纪念牌视图模型(#10,定稿原型右栏 moments + PRD F2.1)。
  *
- * - 旅途总览:全部档案记录口径(总抽数 = Σcount 加权,#15;五星数 = qualityLevel 5 计数,
+ * - 旅途总览:全部档案记录口径(总抽数 = 记录行数,每行=一抽;五星数 = qualityLevel 5 计数,
  *   「自」取最早记录的年月);原型「四池合计」在多池档案下即全档案合计。
  * - 最欧「出手如电」/最非「漫长等待」:欧非总评数据集(角色系限定池 1/8/10/12,
  *   同 overallStats)内的极端出货;新手·感恩池与常驻池不计入欧非总评,故同样不参与。
@@ -90,7 +90,7 @@ export function highlights(records: readonly GachaRecord[]): HighlightsVM {
     if (earliest === null || record.time < earliest) earliest = record.time
   }
   const journey: JourneySummaryVM = {
-    totalPulls: records.reduce((sum, r) => sum + r.count, 0),
+    totalPulls: records.length,
     fiveStars,
     since: earliest === null ? null : earliest.slice(0, 7),
   }
