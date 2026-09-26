@@ -11,3 +11,9 @@ src-tauri/target/
 # 本地环境与日志
 *.local
 *.log
+
+# 开发文档（仅本地保留，不入公开仓库）
+/docs/
+/.scratch/
+/AGENTS.md
+/CONTEXT.md

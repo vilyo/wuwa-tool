@@ -29,21 +29,13 @@
 
 Tauri 2 + Vue 3 + TypeScript + Pinia。业务逻辑全部在前端 TS，Rust 仅承担日志读取、目录探测与 HTTP；分发为便携版 zip（解压即用、无需安装），目标 ≤ 15MB。
 
-## 文档导航
+## 文档
 
-| 文档 | 内容 |
-|---|---|
-| [docs/PRD.md](docs/PRD.md) | V1.0 产品需求（定稿） |
-| [docs/prototype/index.html](docs/prototype/index.html) | 交互定稿原型（浏览器直接打开） |
-| [docs/design/DESIGN-SYSTEM.md](docs/design/DESIGN-SYSTEM.md) | 视觉规范 v11 终稿 |
-| [CONTEXT.md](CONTEXT.md) | 领域术语表 |
-| [docs/adr/](docs/adr/) | 架构决策记录 ADR-0001 ~ 0008 |
-| [docs/research-2026-09-25-gacha-api.md](docs/research-2026-09-25-gacha-api.md) | 官方接口技术调研（含来源） |
-| [.scratch/v1-wuwatool/spec.md](.scratch/v1-wuwatool/spec.md) | V1 正式 Spec |
+PRD、交互原型、设计系统、ADR、接口调研与正式 Spec 等开发文档仅保留在本地，不随公开仓库分发。
 
 ## 开发
 
-环境要求：Node ≥ 20（本机走 nvm）、Rust stable。开发在 macOS 进行，发布构建仅在 Windows 机上执行（见 [ADR-0001](docs/adr/0001-tauri-2-desktop-shell.md)）。
+环境要求：Node ≥ 20（本机走 nvm）、Rust stable。开发在 macOS 进行，Windows 发布构建走 GitHub Actions 云端构建。
 
 ```bash
 npm install            # 安装依赖
