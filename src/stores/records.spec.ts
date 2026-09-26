@@ -38,6 +38,8 @@ const CN_LINK =
   'https://aki-gm-resources.aki-game.com/aki/gacha/index.html#/record?svr_id=76402e5b&player_id=106485288&lang=zh-Hans&gacha_id=100074&gacha_type=1&svr_area=cn&record_id=acdf99a1&resources_id=c9fbcd24&platform=PC'
 const OVERSEA_LINK =
   'https://aki-gm-resources-oversea.aki-game.net/aki/gacha/index.html#/record?svr_id=ee5066f9&player_id=882210234&lang=en-US&gacha_id=100074&gacha_type=1&svr_area=oversea&record_id=bb771234&resources_id=dd559012&platform=PC'
+/** 与 CN_LINK 同 UID、record_id 不同的第二条链接(验证缓存刷新到最新一次成功同步) */
+const CN_LINK_2 = CN_LINK.replace('record_id=acdf99a1', 'record_id=ffff2222')
 
 function apiOk(data: unknown[]): string {
   return JSON.stringify({ code: 0, message: 'ok', data })
@@ -632,6 +634,251 @@ describe('records store · 切换确认与档案列表(#05)', () => {
     expect(store.playerId).toBe('106485288')
     expect(store.archiveListOpen).toBe(true)
     expect(store.message?.kind).toBe('error')
+  })
+})
+
+describe('records store · 启动自动同步(#13)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    localStorage.clear()
+  })
+
+  it('开关开且缓存链接有效:静默走全池管线,成功不弹文案、状态栏无提示', async () => {
+    seedDb()
+    mocks.queryPool.mockResolvedValue(apiOk([apiItem('2025-05-01 10:00:00')]))
+    localStorage.setItem('wuwatool.autoSync', 'true')
+    localStorage.setItem('wuwatool.lastSyncUrl', CN_LINK)
+
+    const store = useRecordsStore()
+    await store.autoSyncOnStartup()
+
+    expect(mocks.queryPool).toHaveBeenCalledTimes(13)
+    expect(store.playerId).toBe('106485288')
+    expect(store.records).toHaveLength(13)
+    expect(store.message).toBeNull()
+    expect(store.autoSyncNote).toBeNull()
+  })
+
+  it('开关关:即使有缓存链接也不发请求', async () => {
+    seedDb()
+    localStorage.setItem('wuwatool.autoSync', 'false')
+    localStorage.setItem('wuwatool.lastSyncUrl', CN_LINK)
+
+    const store = useRecordsStore()
+    await store.autoSyncOnStartup()
+
+    expect(mocks.queryPool).not.toHaveBeenCalled()
+    expect(store.playerId).toBeNull()
+  })
+
+  it('无缓存链接:开关开着也静默跳过', async () => {
+    seedDb()
+    localStorage.setItem('wuwatool.autoSync', 'true')
+
+    const store = useRecordsStore()
+    await store.autoSyncOnStartup()
+
+    expect(mocks.queryPool).not.toHaveBeenCalled()
+  })
+
+  it('缓存链接失效(code != 0):不弹错误文案,状态栏给出温和的重新获取提示', async () => {
+    seedDb()
+    mocks.queryPool.mockResolvedValue(JSON.stringify({ code: -100, message: 'expired' }))
+    localStorage.setItem('wuwatool.autoSync', 'true')
+    localStorage.setItem('wuwatool.lastSyncUrl', CN_LINK)
+
+    const store = useRecordsStore()
+    await store.autoSyncOnStartup()
+
+    expect(mocks.queryPool).toHaveBeenCalledTimes(1)
+    expect(store.message).toBeNull()
+    expect(store.autoSyncNote).toContain('自动同步')
+    expect(store.autoSyncNote).toContain('重新获取')
+  })
+
+  it('缓存链接 UID 与当前档案不同:静默跳过,不弹切换确认、不拉取', async () => {
+    seedDb()
+    mocks.queryPool.mockResolvedValue(apiOk([apiItem('2025-05-01 10:00:00')]))
+    localStorage.setItem('wuwatool.autoSync', 'true')
+    localStorage.setItem('wuwatool.lastSyncUrl', OVERSEA_LINK)
+
+    const store = useRecordsStore()
+    await store.importLink(CN_LINK)
+    mocks.queryPool.mockClear()
+    localStorage.setItem('wuwatool.lastSyncUrl', OVERSEA_LINK)
+
+    await store.autoSyncOnStartup()
+
+    expect(mocks.queryPool).not.toHaveBeenCalled()
+    expect(store.pendingSwitch).toBeNull()
+    expect(store.playerId).toBe('106485288')
+  })
+
+  it('缓存链接无法解析:静默跳过并保留缓存', async () => {
+    seedDb()
+    localStorage.setItem('wuwatool.autoSync', 'true')
+    localStorage.setItem('wuwatool.lastSyncUrl', '不是链接')
+
+    const store = useRecordsStore()
+    await store.autoSyncOnStartup()
+
+    expect(mocks.queryPool).not.toHaveBeenCalled()
+    expect(store.message).toBeNull()
+    expect(store.autoSyncNote).toBeNull()
+    expect(localStorage.getItem('wuwatool.lastSyncUrl')).toBe('不是链接')
+  })
+})
+
+describe('records store · 成功同步后刷新缓存链接(#13)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    localStorage.clear()
+  })
+
+  it('importLink 成功:缓存本次链接', async () => {
+    seedDb()
+    mocks.queryPool.mockResolvedValue(apiOk([apiItem('2025-05-01 10:00:00')]))
+
+    const store = useRecordsStore()
+    await store.importLink(CN_LINK)
+
+    expect(localStorage.getItem('wuwatool.lastSyncUrl')).toBe(CN_LINK)
+  })
+
+  it('再次成功同步:缓存更新为最新一次链接', async () => {
+    seedDb()
+    mocks.queryPool.mockResolvedValue(apiOk([apiItem('2025-05-01 10:00:00')]))
+
+    const store = useRecordsStore()
+    await store.importLink(CN_LINK)
+    await store.importLink(CN_LINK_2)
+
+    expect(localStorage.getItem('wuwatool.lastSyncUrl')).toBe(CN_LINK_2)
+  })
+
+  it('同步失败:缓存保持上一次成功链接', async () => {
+    seedDb()
+    localStorage.setItem('wuwatool.lastSyncUrl', CN_LINK_2)
+    mocks.queryPool.mockResolvedValue(JSON.stringify({ code: -100, message: 'expired' }))
+
+    const store = useRecordsStore()
+    await store.importLink(CN_LINK)
+
+    expect(store.message?.kind).toBe('error')
+    expect(localStorage.getItem('wuwatool.lastSyncUrl')).toBe(CN_LINK_2)
+  })
+
+  it('从 UID 选择列表导入成功:同样缓存该链接', async () => {
+    seedDb()
+    mocks.queryPool.mockResolvedValue(apiOk([apiItem('2025-05-01 10:00:00')]))
+    const url = OVERSEA_LINK
+
+    const store = useRecordsStore()
+    // 直接构造选择列表场景:chooseUid 只依赖 pendingUids
+    store.pendingUids = [{ playerId: '882210234', url, archive: null }]
+    await store.chooseUid('882210234')
+
+    expect(store.playerId).toBe('882210234')
+    expect(localStorage.getItem('wuwatool.lastSyncUrl')).toBe(url)
+  })
+})
+
+describe('records store · 重新探测游戏目录(#13)', () => {
+  const GAME_DIR = 'C:\\Wuthering Waves Game'
+  const NEW_DIR = 'D:\\Games\\Wuthering Waves'
+
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    localStorage.clear()
+  })
+
+  it('探测成功:更新目录与提示,不触发日志提取与同步', async () => {
+    mocks.probeGameDir.mockResolvedValue({
+      candidates: [{ path: NEW_DIR, source: 'common-scan' }],
+      diagnosis: null,
+    })
+
+    const store = useRecordsStore()
+    const ok = await store.reprobeGameDir()
+
+    expect(ok).toBe(true)
+    expect(mocks.probeGameDir).toHaveBeenCalledWith(null)
+    expect(mocks.extractLinks).not.toHaveBeenCalled()
+    expect(mocks.queryPool).not.toHaveBeenCalled()
+    expect(store.probedGameDir).toBe(NEW_DIR)
+    expect(store.message?.kind).toBe('success')
+    expect(store.message?.text).toContain(NEW_DIR)
+  })
+
+  it('记忆的手动目录作为 manualDir 传入重探测', async () => {
+    localStorage.setItem('wuwatool.gameDir', GAME_DIR)
+    mocks.probeGameDir.mockResolvedValue({
+      candidates: [{ path: GAME_DIR, source: 'manual' }],
+      diagnosis: null,
+    })
+
+    const store = useRecordsStore()
+    await store.reprobeGameDir()
+
+    expect(mocks.probeGameDir).toHaveBeenCalledWith(GAME_DIR)
+  })
+
+  it('探测不到目录:引导手动指定,选定有效目录后记住并更新显示(不同步)', async () => {
+    mocks.probeGameDir
+      .mockResolvedValueOnce({ candidates: [], diagnosis: 'no-game-dir' })
+      .mockResolvedValueOnce({ candidates: [{ path: NEW_DIR, source: 'manual' }], diagnosis: null })
+    mocks.pickGameDirectory.mockResolvedValue(GAME_DIR)
+
+    const store = useRecordsStore()
+    const ok = await store.reprobeGameDir()
+
+    expect(ok).toBe(true)
+    expect(mocks.pickGameDirectory).toHaveBeenCalledTimes(1)
+    expect(localStorage.getItem('wuwatool.gameDir')).toBe(GAME_DIR)
+    expect(store.probedGameDir).toBe(NEW_DIR)
+    expect(mocks.extractLinks).not.toHaveBeenCalled()
+    expect(mocks.queryPool).not.toHaveBeenCalled()
+  })
+
+  it('用户取消手动指定:保留指引消息,不更新目录', async () => {
+    mocks.probeGameDir.mockResolvedValue({ candidates: [], diagnosis: 'no-game-dir' })
+    mocks.pickGameDirectory.mockResolvedValue(null)
+
+    const store = useRecordsStore()
+    const ok = await store.reprobeGameDir()
+
+    expect(ok).toBe(false)
+    expect(store.message?.kind).toBe('error')
+    expect(store.message?.text).toContain('未找到游戏安装目录')
+    expect(store.probedGameDir).toBeNull()
+  })
+
+  it('手动选择的目录无效:不记住,给出 Client 文件夹指引', async () => {
+    mocks.probeGameDir
+      .mockResolvedValueOnce({ candidates: [], diagnosis: 'no-game-dir' })
+      .mockResolvedValueOnce({ candidates: [], diagnosis: 'no-game-dir' })
+    mocks.pickGameDirectory.mockResolvedValue('D:\\NotAGame')
+
+    const store = useRecordsStore()
+    const ok = await store.reprobeGameDir()
+
+    expect(ok).toBe(false)
+    expect(localStorage.getItem('wuwatool.gameDir')).toBeNull()
+    expect(store.message?.kind).toBe('error')
+    expect(store.message?.text).toContain('Client 文件夹')
+  })
+
+  it('同步期间重探测被门闩拦下', async () => {
+    const store = useRecordsStore()
+    store.syncing = true
+
+    const ok = await store.reprobeGameDir()
+
+    expect(ok).toBe(false)
+    expect(mocks.probeGameDir).not.toHaveBeenCalled()
   })
 })
 

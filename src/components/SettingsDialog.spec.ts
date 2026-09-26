@@ -58,6 +58,7 @@ function mountDialog(open = true) {
 
 afterEach(() => {
   vi.clearAllMocks()
+  localStorage.clear()
   document.body.innerHTML = ''
 })
 
@@ -183,6 +184,91 @@ describe('设置弹窗(#12):导出与导入', () => {
     await vi.waitFor(() => {
       expect(store.message?.kind).toBe('success')
     })
+  })
+})
+
+describe('设置弹窗(#13):偏好区', () => {
+  const GAME_DIR = 'C:\\Wuthering Waves Game'
+  const NEW_DIR = 'D:\\Games\\Wuthering Waves'
+
+  it('偏好区三行上屏:主题分段(明色默认)、自动同步开关(默认开)、目录展示+重新探测', () => {
+    const { wrapper } = mountDialog()
+
+    const segActive = wrapper.find('.seg button.is-active')
+    expect(segActive.text()).toBe('明色')
+
+    const toggle = wrapper.find('button.toggle')
+    expect(toggle.attributes('aria-label')).toBe('启动时自动同步')
+    expect(toggle.attributes('aria-pressed')).toBe('true')
+
+    expect(wrapper.find('.path-view').text()).toBe('未探测')
+    expect(wrapper.findAll('button').map((b) => b.text())).toContain('重新探测')
+  })
+
+  it('主题切换:点暗色立即应用并持久化,激活态随选移动', async () => {
+    const { wrapper } = mountDialog()
+
+    await wrapper.findAll('.seg button').find((b) => b.text() === '暗色')!.trigger('click')
+
+    expect(document.documentElement.dataset.theme).toBe('dark')
+    expect(localStorage.getItem('wuwatool.theme')).toBe('dark')
+    expect(wrapper.findAll('.seg button').find((b) => b.text() === '暗色')!.classes()).toContain(
+      'is-active',
+    )
+    expect(wrapper.findAll('.seg button').find((b) => b.text() === '明色')!.classes()).not.toContain(
+      'is-active',
+    )
+
+    await wrapper.findAll('.seg button').find((b) => b.text() === '明色')!.trigger('click')
+    expect(document.documentElement.dataset.theme).toBe('light')
+  })
+
+  it('自动同步开关:点击立即翻转并持久化', async () => {
+    const { wrapper } = mountDialog()
+    const toggle = () => wrapper.find('button.toggle')
+
+    await toggle().trigger('click')
+    expect(toggle().attributes('aria-pressed')).toBe('false')
+    expect(localStorage.getItem('wuwatool.autoSync')).toBe('false')
+
+    await toggle().trigger('click')
+    expect(toggle().attributes('aria-pressed')).toBe('true')
+    expect(localStorage.getItem('wuwatool.autoSync')).toBe('true')
+  })
+
+  it('记忆的游戏目录上屏;重新探测成功后显示更新且不触发同步', async () => {
+    localStorage.setItem('wuwatool.gameDir', GAME_DIR)
+    const { wrapper, store } = mountDialog()
+    expect(wrapper.find('.path-view').text()).toBe(GAME_DIR)
+
+    mocks.probeGameDir.mockResolvedValue({
+      candidates: [{ path: NEW_DIR, source: 'registry-uninstall' }],
+      diagnosis: null,
+    })
+    await wrapper.findAll('button').find((b) => b.text() === '重新探测')!.trigger('click')
+    await vi.waitFor(() => {
+      expect(wrapper.find('.path-view').text()).toBe(NEW_DIR)
+    })
+
+    expect(mocks.probeGameDir).toHaveBeenCalledWith(GAME_DIR)
+    expect(mocks.extractLinks).not.toHaveBeenCalled()
+    expect(mocks.queryPool).not.toHaveBeenCalled()
+    expect(store.probedGameDir).toBe(NEW_DIR)
+    expect(store.message?.kind).toBe('success')
+  })
+
+  it('重新探测失败(用户取消手动指定):给出指引消息', async () => {
+    const { wrapper, store } = mountDialog()
+    mocks.probeGameDir.mockResolvedValue({ candidates: [], diagnosis: 'no-game-dir' })
+    mocks.pickGameDirectory.mockResolvedValue(null)
+
+    await wrapper.findAll('button').find((b) => b.text() === '重新探测')!.trigger('click')
+    await vi.waitFor(() => {
+      expect(store.message?.kind).toBe('error')
+    })
+
+    expect(store.message?.text).toContain('未找到游戏安装目录')
+    expect(wrapper.find('.path-view').text()).toBe('未探测')
   })
 })
 

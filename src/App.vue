@@ -58,9 +58,11 @@ function selectPool(code: number): void {
   selectedCode.value = code
 }
 
-// 启动时恢复最近档案(重启后数据完整可读)
-onMounted(() => {
-  void recordsStore.init()
+// 启动时恢复最近档案(重启后数据完整可读),随后按偏好尝试一次静默自动同步(#13):
+// 仅当开关开且缓存链接有效时增量获取,失败不打扰(状态栏温和提示)
+onMounted(async () => {
+  await recordsStore.init()
+  void recordsStore.autoSyncOnStartup()
 })
 </script>
 

@@ -1,7 +1,9 @@
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
-import { describe, expect, it, vi } from 'vitest'
+import { invoke } from '@tauri-apps/api/core'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { Mock } from 'vitest'
 import type { GachaRecord } from '@/domain/records'
 import { useRecordsStore } from '@/stores/records'
 import App from './App.vue'
@@ -369,6 +371,45 @@ describe('主题切换(临时入口,#13 移交设置)', () => {
 
     await wrapper.find('button[aria-label="切换明暗主题"]').trigger('click')
     expect(document.documentElement.dataset.theme).toBe('light')
+  })
+})
+
+describe('启动自动同步(#13)', () => {
+  const CN_LINK =
+    'https://aki-gm-resources.aki-game.com/aki/gacha/index.html#/record?svr_id=76402e5b&player_id=106485288&lang=zh-Hans&gacha_id=100074&gacha_type=1&svr_area=cn&record_id=acdf99a1&resources_id=c9fbcd24&platform=PC'
+
+  afterEach(() => {
+    localStorage.clear()
+    ;(invoke as unknown as Mock).mockRestore()
+  })
+
+  it('有缓存链接且开关开:启动后自动发起同步,失败仅状态栏温和提示(接线冒烟)', async () => {
+    // gacha_query 快速失败(非网络类不重试),其余命令照常返回空档案
+    ;(invoke as unknown as Mock).mockImplementation(async (cmd: string) => {
+      if (cmd === 'gacha_query') throw new Error('stub fail fast')
+      return []
+    })
+    localStorage.setItem('wuwatool.autoSync', 'true')
+    localStorage.setItem('wuwatool.lastSyncUrl', CN_LINK)
+
+    const wrapper = mountApp()
+
+    await vi.waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith('gacha_query', expect.anything())
+    })
+    await vi.waitFor(() => {
+      expect(wrapper.find('.statusbar').text()).toContain('自动同步失败')
+    })
+    // 静默:错误不进消息横幅打扰
+    expect(wrapper.find('.paste-message').exists()).toBe(false)
+  })
+
+  it('无缓存链接:启动不做任何同步请求', async () => {
+    const wrapper = mountApp()
+    await new Promise((resolve) => setTimeout(resolve, 20))
+
+    expect(invoke).not.toHaveBeenCalledWith('gacha_query', expect.anything())
+    expect(wrapper.find('.statusbar').text()).not.toContain('自动同步失败')
   })
 })
 

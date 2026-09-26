@@ -11,6 +11,13 @@ import type { GachaRecord } from '@/domain/records'
 import type { SyncDeps } from '@/domain/syncPool'
 import { syncAll, type SyncAllProgress } from '@/domain/syncAll'
 import {
+  loadAutoSync,
+  loadGameDir,
+  loadLastSyncUrl,
+  saveGameDir,
+  saveLastSyncUrl,
+} from '@/stores/preferences'
+import {
   clearArchive,
   listArchives,
   pickBackupOpenPath,
@@ -27,34 +34,16 @@ function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-/** 手动指定的游戏目录记在本地存储(#13 会统一管理偏好,V1 先行假设) */
-const GAME_DIR_STORAGE_KEY = 'wuwatool.gameDir'
-
-function rememberedGameDir(): string | null {
-  try {
-    return localStorage.getItem(GAME_DIR_STORAGE_KEY)
-  } catch {
-    return null
-  }
-}
-
-function rememberGameDir(dir: string): void {
-  try {
-    localStorage.setItem(GAME_DIR_STORAGE_KEY, dir)
-  } catch {
-    // 存储不可用时跳过记忆,不影响本次同步
-  }
-}
-
 export interface StoreMessage {
   kind: 'success' | 'error'
   text: string
 }
 
-/** 待确认的档案切换:解析出的 UID 与当前档案不同(CONTEXT「切换档案」) */
+/** 待确认的档案切换:解析出的 UID 与当前档案不同(CONTEXT「切换档案」);url 供切换后刷新同步缓存 */
 interface PendingSwitch {
   playerId: string
   link: ParsedGachaLink
+  url: string
 }
 
 /**
@@ -80,6 +69,10 @@ export const useRecordsStore = defineStore('records', () => {
   const archives = ref<ArchiveSummary[]>([])
   const archiveListOpen = ref(false)
   const message = ref<StoreMessage | null>(null)
+  /** 最近一次探测确认可用的游戏目录(#13 设置弹窗展示用,先于记忆目录展示) */
+  const probedGameDir = ref<string | null>(null)
+  /** 启动自动同步静默失败的状态栏温和提示(#13):不打扰,下次同步动作时清除 */
+  const autoSyncNote = ref<string | null>(null)
 
   async function loadPlayer(playerIdToLoad: string): Promise<void> {
     records.value = await tauriStorage.loadRecords(playerIdToLoad)
@@ -97,10 +90,17 @@ export const useRecordsStore = defineStore('records', () => {
     }
   }
 
-  /** 全池管线的执行段:parse 之后的拉取 → 合并入库 → 刷新展示(各入口共用) */
-  async function runSync(parsed: ParsedGachaLink): Promise<boolean> {
+  /** 全池管线的执行段:parse 之后的拉取 → 合并入库 → 刷新展示(各入口共用)。
+   *  quiet(#13 启动自动同步):成败都不写 message(静默、不打扰),结果由返回值表达;
+   *  rawUrl:本次同步的原始链接,成功后刷新到偏好缓存(#13 启动自动同步用) */
+  async function runSync(
+    parsed: ParsedGachaLink,
+    options: { quiet?: boolean; rawUrl?: string } = {},
+  ): Promise<boolean> {
+    const quiet = options.quiet === true
     syncing.value = true
     message.value = null
+    autoSyncNote.value = null
     syncProgress.value = null
     let ok = false
     try {
@@ -109,13 +109,16 @@ export const useRecordsStore = defineStore('records', () => {
         syncProgress.value = progress
       })
       await loadPlayer(parsed.playerId)
-      message.value = {
-        kind: 'success',
-        text: `同步完成:${result.pools.length} 个卡池拉取 ${result.fetched} 条,新增 ${result.added} 条,档案共 ${result.total} 条。新记录约 30 分钟延迟,刚抽完查不到是预期行为。`,
+      if (options.rawUrl !== undefined) saveLastSyncUrl(options.rawUrl)
+      if (!quiet) {
+        message.value = {
+          kind: 'success',
+          text: `同步完成:${result.pools.length} 个卡池拉取 ${result.fetched} 条,新增 ${result.added} 条,档案共 ${result.total} 条。新记录约 30 分钟延迟,刚抽完查不到是预期行为。`,
+        }
       }
       ok = true
     } catch (error) {
-      message.value = { kind: 'error', text: errorText(error) }
+      if (!quiet) message.value = { kind: 'error', text: errorText(error) }
       // 中止前已入库的池数据照常保留并刷新展示;刷新失败不掩盖原始错误
       try {
         await loadPlayer(parsed.playerId)
@@ -141,10 +144,10 @@ export const useRecordsStore = defineStore('records', () => {
     }
     // 检测到与当前档案不同的 UID:暂停,弹切换确认;确认前不发起任何拉取
     if (playerId.value !== null && parsed.playerId !== playerId.value) {
-      pendingSwitch.value = { playerId: parsed.playerId, link: parsed }
+      pendingSwitch.value = { playerId: parsed.playerId, link: parsed, url: raw }
       return false
     }
-    return await runSync(parsed)
+    return await runSync(parsed, { rawUrl: raw })
   }
 
   /** 从 UID 选择列表选定要导入的档案(用户显式选择即确认,无需再弹切换确认) */
@@ -153,7 +156,7 @@ export const useRecordsStore = defineStore('records', () => {
     pendingUids.value = null
     if (!choice) return
     try {
-      await runSync(parseGachaLink(choice.url))
+      await runSync(parseGachaLink(choice.url), { rawUrl: choice.url })
     } catch (error) {
       message.value = { kind: 'error', text: errorText(error) }
     }
@@ -169,7 +172,7 @@ export const useRecordsStore = defineStore('records', () => {
     const pending = pendingSwitch.value
     pendingSwitch.value = null
     if (!pending) return
-    await runSync(pending.link)
+    await runSync(pending.link, { rawUrl: pending.url })
   }
 
   /** 取消切换:中止本次导入,档案保持不变 */
@@ -301,6 +304,32 @@ export const useRecordsStore = defineStore('records', () => {
     return false
   }
 
+  /** 探测段(#04/#13 共用):常规探测 → 失败弹手动选择并验证;确认可用的目录记入展示态。
+   *  返回 null 表示用户取消或所选目录无效(指引消息已就位) */
+  async function probeDirWithManualFallback(): Promise<string | null> {
+    let report = await tauriDirProbe.probeGameDir(loadGameDir())
+    if (report.candidates.length === 0) {
+      message.value = { kind: 'error', text: diagnosisGuidance('no-game-dir') }
+      const picked = await pickGameDirectory()
+      if (picked === null) return null
+      report = await tauriDirProbe.probeGameDir(picked)
+      const manual = report.candidates.find((candidate) => candidate.source === 'manual')
+      if (!manual) {
+        message.value = {
+          kind: 'error',
+          text: '所选目录未找到 Client 文件夹,请选择游戏安装根目录(含 Client 文件夹)后重试。',
+        }
+        return null
+      }
+      saveGameDir(picked)
+      probedGameDir.value = manual.path
+      return manual.path
+    }
+    const dir = report.candidates[0]!.path
+    probedGameDir.value = dir
+    return dir
+  }
+
   /** 一键获取:目录探测 → 日志提取 → 进入 importLink 全池管线。
    *  探测不到目录时弹文件夹选择器手动指定并记住(选择无效则给出具体指引) */
   async function oneClickSync(): Promise<boolean> {
@@ -309,30 +338,56 @@ export const useRecordsStore = defineStore('records', () => {
     message.value = null
     pendingUids.value = null
     pendingSwitch.value = null
+    autoSyncNote.value = null
     try {
-      let report = await tauriDirProbe.probeGameDir(rememberedGameDir())
-      if (report.candidates.length === 0) {
-        message.value = { kind: 'error', text: diagnosisGuidance('no-game-dir') }
-        const picked = await pickGameDirectory()
-        if (picked === null) return false
-        report = await tauriDirProbe.probeGameDir(picked)
-        const manual = report.candidates.find((candidate) => candidate.source === 'manual')
-        if (!manual) {
-          message.value = {
-            kind: 'error',
-            text: '所选目录未找到 Client 文件夹,请选择游戏安装根目录(含 Client 文件夹)后重试。',
-          }
-          return false
-        }
-        rememberGameDir(picked)
-        return await syncFromGameDir(manual.path)
-      }
-      return await syncFromGameDir(report.candidates[0]!.path)
+      const dir = await probeDirWithManualFallback()
+      if (dir === null) return false
+      return await syncFromGameDir(dir)
     } catch (error) {
       message.value = { kind: 'error', text: `一键获取失败:${errorText(error)}` }
       return false
     } finally {
       probing.value = false
+    }
+  }
+
+  /** 重新探测游戏目录(#13,设置弹窗入口):只更新目录与提示,不触发日志提取与同步;
+   *  探测失败时给具体指引并允许手动指定(复用 #04 链路) */
+  async function reprobeGameDir(): Promise<boolean> {
+    if (syncing.value || probing.value) return false
+    probing.value = true
+    message.value = null
+    try {
+      const dir = await probeDirWithManualFallback()
+      if (dir === null) return false
+      message.value = { kind: 'success', text: `已重新探测到游戏目录:${dir}` }
+      return true
+    } catch (error) {
+      message.value = { kind: 'error', text: `探测游戏目录失败:${errorText(error)}` }
+      return false
+    } finally {
+      probing.value = false
+    }
+  }
+
+  /** 启动自动同步(#13):开关开且缓存链接存在时,静默走 importLink 同一全池管线
+   *  (不弹窗、不抢焦点);链接失效或网络失败时不弹错误,仅在状态栏留温和提示;
+   *  开关关、无缓存或缓存损坏时静默跳过 */
+  async function autoSyncOnStartup(): Promise<void> {
+    if (!loadAutoSync()) return
+    const cached = loadLastSyncUrl()
+    if (cached === null) return
+    let parsed: ParsedGachaLink
+    try {
+      parsed = parseGachaLink(cached)
+    } catch {
+      return // 缓存损坏:静默跳过并保留缓存
+    }
+    // 目标 UID 与当前档案不同:静默跳过(自动同步不弹切换确认,档案由用户手动管理)
+    if (playerId.value !== null && parsed.playerId !== playerId.value) return
+    const ok = await runSync(parsed, { quiet: true, rawUrl: cached })
+    if (!ok) {
+      autoSyncNote.value = '启动自动同步失败:链接可能已失效或网络不可用,可重新获取链接后重试。'
     }
   }
 
@@ -347,9 +402,13 @@ export const useRecordsStore = defineStore('records', () => {
     archives,
     archiveListOpen,
     message,
+    probedGameDir,
+    autoSyncNote,
     init,
     importLink,
     oneClickSync,
+    reprobeGameDir,
+    autoSyncOnStartup,
     chooseUid,
     cancelUidSelection,
     confirmSwitch,

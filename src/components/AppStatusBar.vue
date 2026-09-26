@@ -1,12 +1,22 @@
 <script setup lang="ts">
+import { useRecordsStore } from '@/stores/records'
+
+const records = useRecordsStore()
 const version = __APP_VERSION__
 </script>
 
 <template>
   <footer class="statusbar">
-    <span>新唤取记录约 <span class="num">30</span> 分钟后可同步</span>
-    <span aria-hidden="true">·</span>
-    <span>官方仅保留近 6 个月记录,更早已存于本地档案</span>
+    <!-- 自动同步静默失败的温和提示(#13):被动文字、不打扰,出现时替代常驻提示位 -->
+    <span
+      v-if="records.autoSyncNote"
+      role="status"
+    >{{ records.autoSyncNote }}</span>
+    <template v-else>
+      <span>新唤取记录约 <span class="num">30</span> 分钟后可同步</span>
+      <span aria-hidden="true">·</span>
+      <span>官方仅保留近 6 个月记录,更早已存于本地档案</span>
+    </template>
     <span class="right">所有数据仅保存在本机 · <span class="num">v{{ version }}</span></span>
   </footer>
 </template>

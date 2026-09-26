@@ -64,7 +64,7 @@ describe('切换确认弹窗(#05)', () => {
     const wrapper = mountDialog()
     const store = useRecordsStore()
     store.playerId = '106485288'
-    store.pendingSwitch = { playerId: '882210234', link: parseGachaLink(OVERSEA_LINK) }
+    store.pendingSwitch = { playerId: '882210234', link: parseGachaLink(OVERSEA_LINK), url: OVERSEA_LINK }
     await nextTick()
 
     const dialog = wrapper.find('[role="dialog"]')
@@ -82,7 +82,7 @@ describe('切换确认弹窗(#05)', () => {
     const wrapper = mountDialog()
     const store = useRecordsStore()
     store.playerId = '106485288'
-    store.pendingSwitch = { playerId: '882210234', link: parseGachaLink(OVERSEA_LINK) }
+    store.pendingSwitch = { playerId: '882210234', link: parseGachaLink(OVERSEA_LINK), url: OVERSEA_LINK }
     await nextTick()
 
     await wrapper.find('button.dialog-confirm').trigger('click')
@@ -98,7 +98,7 @@ describe('切换确认弹窗(#05)', () => {
     const wrapper = mountDialog()
     const store = useRecordsStore()
     store.playerId = '106485288'
-    store.pendingSwitch = { playerId: '882210234', link: parseGachaLink(OVERSEA_LINK) }
+    store.pendingSwitch = { playerId: '882210234', link: parseGachaLink(OVERSEA_LINK), url: OVERSEA_LINK }
     await nextTick()
 
     await wrapper.find('button.dialog-cancel').trigger('click')

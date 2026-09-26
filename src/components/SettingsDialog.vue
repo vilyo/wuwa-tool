@@ -1,14 +1,33 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useRecordsStore } from '@/stores/records'
+import { loadGameDir, usePreferencesStore } from '@/stores/preferences'
+import { useThemeStore, type ThemeName } from '@/stores/theme'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 
 const store = useRecordsStore()
+const preferences = usePreferencesStore()
+const theme = useThemeStore()
 
 /** 构建期注入的版本号(vite define,与状态栏同源) */
 const appVersion = __APP_VERSION__
+
+/** 当前使用的游戏目录(#13):最近一次探测结果优先,其次记住的手动目录,没有则未探测 */
+const gameDirDisplay = computed(() => store.probedGameDir ?? loadGameDir() ?? '未探测')
+
+function setTheme(next: ThemeName): void {
+  theme.set(next)
+}
+
+function toggleAutoSync(): void {
+  preferences.setAutoSync(!preferences.autoSync)
+}
+
+async function reprobe(): Promise<void> {
+  await store.reprobeGameDir()
+}
 
 // —— 清空二次确认(#12):确认层写明将删除的 UID 与不可恢复,置于设置弹窗之上 ——
 const confirmingClear = ref(false)
@@ -102,7 +121,7 @@ onBeforeUnmount(() => {
       class="settings-backdrop"
       @click="onBackdropClick"
     />
-    <!-- 弹窗壳与行式布局(#12,定稿原型 .modal/.m-panel/.set-row):本任务只放「数据」区,主题等偏好区留给 #13 -->
+    <!-- 弹窗壳与行式布局(#12,定稿原型 .modal/.m-panel/.set-row):偏好区(#13)+数据区 -->
     <div
       class="settings-modal"
       role="dialog"
@@ -134,6 +153,63 @@ onBeforeUnmount(() => {
         </button>
       </div>
       <div class="settings-body">
+        <!-- 偏好区(#13,定稿原型 .set-row/.seg/.toggle/.path-view):即时生效、即时持久化 -->
+        <div class="set-row">
+          <div class="info">
+            <div class="t">主题</div>
+            <div class="d">明色为默认,与游戏内界面同源;暗色为夜晚模式</div>
+          </div>
+          <div
+            class="seg"
+            role="group"
+            aria-label="主题"
+          >
+            <button
+              type="button"
+              :class="{ 'is-active': theme.theme === 'light' }"
+              @click="setTheme('light')"
+            >
+              明色
+            </button>
+            <button
+              type="button"
+              :class="{ 'is-active': theme.theme === 'dark' }"
+              @click="setTheme('dark')"
+            >
+              暗色
+            </button>
+          </div>
+        </div>
+        <div class="set-row">
+          <div class="info">
+            <div class="t">启动时自动同步</div>
+            <div class="d">仅在上次的唤取链接仍有效时静默增量获取</div>
+          </div>
+          <button
+            type="button"
+            class="toggle"
+            :aria-pressed="preferences.autoSync"
+            aria-label="启动时自动同步"
+            @click="toggleAutoSync"
+          >
+            <i />
+          </button>
+        </div>
+        <div class="set-row">
+          <div class="info">
+            <div class="t">游戏安装目录</div>
+            <div class="d">自动探测失败时可手动指定</div>
+          </div>
+          <span class="path-view num">{{ gameDirDisplay }}</span>
+          <button
+            type="button"
+            class="set-btn"
+            :disabled="busy"
+            @click="reprobe"
+          >
+            重新探测
+          </button>
+        </div>
         <div class="set-row">
           <div class="info">
             <div class="t">备份与恢复</div>
@@ -335,6 +411,70 @@ onBeforeUnmount(() => {
 .set-btn:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+/* 主题分段选择(#13,定稿原型 .seg) */
+.seg {
+  flex: none;
+  display: inline-flex;
+  border: 1px solid var(--hairline-2);
+}
+
+.seg button {
+  padding: 6px 16px;
+  font-size: 13px;
+  color: var(--text-2);
+  transition: color var(--t-fast), background var(--t-fast);
+}
+
+.seg button.is-active {
+  background: var(--ink);
+  color: var(--ink-text);
+  font-weight: 700;
+}
+
+/* 开关(#13,定稿原型 .toggle):aria-pressed 驱动滑块与描边 */
+.toggle {
+  flex: none;
+  position: relative;
+  width: 42px;
+  height: 22px;
+  border: 1px solid var(--hairline-2);
+  background: var(--panel-2);
+  transition: border-color var(--t-fast);
+}
+
+.toggle i {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: var(--text-3);
+  transition: left 0.15s, background var(--t-fast);
+}
+
+.toggle[aria-pressed='true'] {
+  border-color: var(--accent);
+}
+
+.toggle[aria-pressed='true'] i {
+  left: 22px;
+  background: var(--accent);
+}
+
+/* 当前游戏目录只读展示(#13,定稿原型 .path-view) */
+.path-view {
+  flex: none;
+  font: 500 12px var(--font-num);
+  color: var(--text-2);
+  background: var(--panel-2);
+  border: 1px solid var(--hairline);
+  padding: 6px 10px;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .about-line {
