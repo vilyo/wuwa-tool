@@ -7,6 +7,7 @@ import {
   expectedReferencePulls,
   LUCKIEST_PULLS,
   poolVerdict,
+  TIER_LADDER,
   tierOf,
   UNLUCKY_OFF_RATE,
 } from './verdict'
@@ -71,6 +72,29 @@ describe('评语档位与评级字母(原型 tierOf 定稿):档位边界逐一�
   it('极值:0 抽(理论下限)为 S,超大平均为 D', () => {
     expect(tierOf(0).rank).toBe('S')
     expect(tierOf(200).rank).toBe('D')
+  })
+})
+
+describe('档位表单一来源 TIER_LADDER', () => {
+  it('六行档位,rank/max/text 与定稿档位表逐字一致', () => {
+    expect([...TIER_LADDER]).toEqual([
+      { rank: 'S', max: 35, text: '天选之人' },
+      { rank: 'A', max: 50, text: '欧洲常驻居民' },
+      { rank: 'B+', max: 62, text: '手气不错' },
+      { rank: 'B', max: 70, text: '中规中矩' },
+      { rank: 'C', max: 78, text: '玄不救非' },
+      { rank: 'D', max: null, text: '保底战神' },
+    ])
+  })
+
+  it('与 tierOf 锁步:每档上限落本档、上限+1 落下一档;末档 79 为 D', () => {
+    for (let i = 0; i < TIER_LADDER.length; i += 1) {
+      const rung = TIER_LADDER[i]
+      if (rung.max === null) continue
+      expect(tierOf(rung.max).rank, `tierOf(${rung.max})`).toBe(rung.rank)
+      expect(tierOf(rung.max + 1).rank, `tierOf(${rung.max + 1})`).toBe(TIER_LADDER[i + 1].rank)
+    }
+    expect(tierOf(79).rank).toBe('D')
   })
 })
 

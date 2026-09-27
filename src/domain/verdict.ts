@@ -3,6 +3,7 @@
  *
  * - 评语档位与评级字母按五星平均出货(含出货那抽)定档,原型 tierOf 定稿:
  *   S ≤35 天选之人 / A ≤50 欧洲常驻居民 / B+ ≤62 手气不错 / B ≤70 中规中矩 / C ≤78 玄不救非 / D >78 保底战神。
+ * - 档位表单一来源 TIER_LADDER(#17):tierOf 与评语行 hover 档位弹层共用。
  * - 修正项:歪率 ≥80% 追加「命运的反面宠儿」;出过 ≤10 抽五星追加「十里坡剑圣」式彩蛋(原型文案)。
  * - 程度阈值:超欧 ≤20 抽(绿)、欧 21–40 抽(浅绿)、正常 41–69 抽(中性)、超非 ≥70 抽(红),
  *   供名册数字/微条着色(#08)。
@@ -42,14 +43,28 @@ export interface VerdictTier {
   text: string
 }
 
+/** 档位表行(单一来源):tierOf 与评语行 hover 档位弹层共用(#17) */
+export interface TierRung {
+  rank: string
+  /** 本档上限(含);末档无上限为 null */
+  max: number | null
+  text: string
+}
+
+/** 档位表(原型定稿,S→D):阈值文案「≤N」/末档「>N」按上一档上限显示 */
+export const TIER_LADDER: readonly TierRung[] = [
+  { rank: 'S', max: 35, text: '天选之人' },
+  { rank: 'A', max: 50, text: '欧洲常驻居民' },
+  { rank: 'B+', max: 62, text: '手气不错' },
+  { rank: 'B', max: 70, text: '中规中矩' },
+  { rank: 'C', max: 78, text: '玄不救非' },
+  { rank: 'D', max: null, text: '保底战神' },
+]
+
 /** 评语档位(原型 tierOf 定稿):按五星平均出货定档 */
 export function tierOf(avgPulls: number): VerdictTier {
-  if (avgPulls <= 35) return { rank: 'S', text: '天选之人' }
-  if (avgPulls <= 50) return { rank: 'A', text: '欧洲常驻居民' }
-  if (avgPulls <= 62) return { rank: 'B+', text: '手气不错' }
-  if (avgPulls <= 70) return { rank: 'B', text: '中规中矩' }
-  if (avgPulls <= 78) return { rank: 'C', text: '玄不救非' }
-  return { rank: 'D', text: '保底战神' }
+  const rung = TIER_LADDER.find((r) => r.max === null || avgPulls <= r.max)
+  return { rank: rung!.rank, text: rung!.text }
 }
 
 /** 修正项阈值:歪率 ≥80% 追加「命运的反面宠儿」 */

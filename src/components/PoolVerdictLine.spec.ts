@@ -134,3 +134,60 @@ describe('随当前池数据刷新', () => {
     expect(wrapper.find('.vsub').text()).toBe('平均出货 142.0 抽') // 常驻池不显示歪率
   })
 })
+
+describe('档位表 hover 弹层', () => {
+  it('有评级:hover 触发器弹出六行档位表,行序与阈值正确,当前档唯一高亮', async () => {
+    // 40 抽×2 → 平均 40 → A 档
+    const wrapper = mount(PoolVerdictLine, {
+      props: { records: history([[39, '维里奈'], [39, '忌炎']]), poolCode: 1 },
+    })
+    expect(wrapper.find('.tier-ladder').exists()).toBe(false)
+
+    await wrapper.find('.tier-trigger').trigger('mouseenter')
+
+    const ladder = wrapper.find('.tier-ladder')
+    expect(ladder.exists()).toBe(true)
+    const rows = ladder.findAll('.tl-row')
+    expect(rows).toHaveLength(6)
+    expect(rows.map((row) => row.find('.tl-rank').text())).toEqual(['S', 'A', 'B+', 'B', 'C', 'D'])
+    expect(ladder.text()).toContain('≤35')
+    expect(ladder.text()).toContain('>78')
+    const cur = ladder.findAll('.tl-row.cur')
+    expect(cur).toHaveLength(1)
+    expect(cur[0]!.find('.tl-rank').text()).toBe('A')
+  })
+
+  it('mouseleave 与 blur 收起弹层', async () => {
+    const wrapper = mount(PoolVerdictLine, {
+      props: { records: history([[39, '维里奈'], [39, '忌炎']]), poolCode: 1 },
+    })
+    const trigger = wrapper.find('.tier-trigger')
+
+    await trigger.trigger('mouseenter')
+    expect(wrapper.find('.tier-ladder').exists()).toBe(true)
+    await trigger.trigger('mouseleave')
+    expect(wrapper.find('.tier-ladder').exists()).toBe(false)
+
+    await trigger.trigger('focus')
+    expect(wrapper.find('.tier-ladder').exists()).toBe(true)
+    await trigger.trigger('blur')
+    expect(wrapper.find('.tier-ladder').exists()).toBe(false)
+  })
+
+  it('无评级(新手池):触发器无 tabindex,mouseenter 后仍无弹层', async () => {
+    const wrapper = mount(PoolVerdictLine, {
+      props: {
+        records: [
+          ...fillers(9, 5),
+          record({ cardPoolType: 5, name: '凌阳', qualityLevel: 5, resourceType: '角色' }),
+        ],
+        poolCode: 5,
+      },
+    })
+
+    const trigger = wrapper.find('.tier-trigger')
+    expect(trigger.attributes('tabindex')).toBeUndefined()
+    await trigger.trigger('mouseenter')
+    expect(wrapper.find('.tier-ladder').exists()).toBe(false)
+  })
+})
