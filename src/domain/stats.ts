@@ -6,6 +6,8 @@
  * - 出货抽数含出货那一抽,按池内时间正序累计;池内最早记录即五星时按 1 计并标「不完整」。
  * - 歪判定经常驻名单反向判定(ADR-0002);歪率仅对角色系限定池(1/8/10/12)计算,
  *   未知物品不计入分母;武器系限定池(2/9/11/13)五星必中 UP。
+ * - 出 UP 平均(#18):以 UP 到手为结算单位,歪 + 随后的必中 UP 合并计一次(歪后必中跨池
+ *   继承,总评合并时间序与单池内同规则);仅角色系限定池计算,武器系必中 UP,平均出货即出 UP 抽数。
  * - 保底进度 = 自该池上一个五星之后的抽数,对照五星硬保底(池 5 为 50,其余 80)。
  * - 大小保底状态 = 上一个角色系限定池五星是否歪(1/8/10/12 合并时间序)。
  * - time 字段时区语义未确认,V1 按字符串原样排序(spec Further Notes)。
@@ -33,6 +35,42 @@ export interface PityProgress {
   hard: number
 }
 
+/** 一次 UP 到手的成本组(#18):歪 + 随后必中 UP 合并为一组;直接 UP 自成一组 */
+export interface UpPullGroup {
+  /** 成本抽数(含出货那抽):歪开头时 = 歪的抽数 + 必中 UP 的抽数 */
+  pulls: number
+  /** 组内首个五星是数据集首条记录:更早历史不可见,成本可能偏低(口径同 avgPulls,计入) */
+  incomplete: boolean
+}
+
+/**
+ * UP 出货分组(#18):歪判定经常驻名单(ADR-0002),角色系限定池歪后的下一个五星必中 UP
+ * (跨池继承,总评合并时间序与单池内同规则)。
+ * - 歪开启一组,遇 UP 闭组;末尾未闭合的歪丢弃(该 UP 还没出,由保底进度/大小保底状态表达)。
+ * - 'unknown' 五星无法判定歪/UP:断链不计(与歪率「未知不计入」同口径,宁缺勿滥)。
+ * - 连续歪(理论上不可能)取后一个开组,前者丢弃(防御,测试钉住)。
+ */
+export function upPullGroups(fives: readonly FiveStarPull[]): UpPullGroup[] {
+  const groups: UpPullGroup[] = []
+  let pending: FiveStarPull | null = null
+  for (const five of fives) {
+    if (five.off === 'unknown') {
+      pending = null
+      continue
+    }
+    if (five.off) {
+      pending = five
+      continue
+    }
+    groups.push({
+      pulls: pending ? pending.pulls + five.pulls : five.pulls,
+      incomplete: pending ? pending.incomplete : five.incomplete,
+    })
+    pending = null
+  }
+  return groups
+}
+
 /** 单池(或跨池合计)的统计结果 */
 export interface PoolStats {
   /** 池 code;跨池合计(总评数据集)时为 null */
@@ -44,6 +82,8 @@ export interface PoolStats {
   fives: FiveStarPull[]
   /** 五星平均出货(含出货那抽);无五星为 null */
   avgPulls: number | null
+  /** 出 UP 平均抽数(#18,歪 + 必中 UP 合并计一次,含出货那抽);仅角色系限定池计算,无可计组为 null */
+  avgUpPulls: number | null
   /** 歪率(0–1);仅角色系限定池计算,无可计入分母的五星时为 null */
   offRate: number | null
   /** 保底进度 */
@@ -79,12 +119,16 @@ function computeStats(
 
   const eligible = fives.filter((five) => five.off !== 'unknown')
   const offCount = eligible.filter((five) => five.off === true).length
+  // 出 UP 分组仅角色系限定池;武器系必中 UP(平均出货即出 UP 抽数),常驻/新手/未知池无 UP 概念
+  const upGroups = category === 'limitedChar' ? upPullGroups(fives) : []
   return {
     cardPoolType,
     category,
     totalPulls: asc.length,
     fives,
     avgPulls: fives.length > 0 ? fives.reduce((sum, five) => sum + five.pulls, 0) / fives.length : null,
+    avgUpPulls:
+      upGroups.length > 0 ? upGroups.reduce((sum, group) => sum + group.pulls, 0) / upGroups.length : null,
     offRate:
       category === 'limitedChar' && eligible.length > 0 ? offCount / eligible.length : null,
     pity: { current: sinceLastFive, hard: hardPity(cardPoolType ?? 1) },

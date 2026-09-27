@@ -116,13 +116,14 @@ describe('类别内二级池切换', () => {
 })
 
 describe('顶部汇总指标行(随页签联动)', () => {
-  it('显示总唤取、五星数、平均出货;歪率仅角色系限定池有值', () => {
-    // 池 1:40 抽歪(维里奈) + 10 抽 UP(忌炎) → 歪率 50%
+  it('显示总唤取、五星数、平均出货;平均出UP与歪率仅角色系限定池有值(#18)', () => {
+    // 池 1:40 抽歪(维里奈) + 10 抽 UP(忌炎) → 歪率 50%,出UP 40+10=50
     const char = mountBar(history([[39, '维里奈'], [9, '忌炎']]), 'limitedChar', 1)
     const charStats = char.find('.tabs-status')
     expect(charStats.text()).toContain('总唤取 50')
     expect(charStats.text()).toContain('五星 2')
     expect(charStats.text()).toContain('平均出货 25.0')
+    expect(charStats.text()).toContain('平均出UP 50.0')
     expect(charStats.text()).toContain('歪率 50%')
 
     // 武器系(必中 UP,无歪率):poolCode 换成 2 后指标随池联动
@@ -135,13 +136,15 @@ describe('顶部汇总指标行(随页签联动)', () => {
     expect(weaponStats.text()).toContain('总唤取 21')
     expect(weaponStats.text()).toContain('五星 1')
     expect(weaponStats.text()).toContain('平均出货 21.0')
+    expect(weaponStats.text()).not.toContain('平均出UP')
     expect(weaponStats.text()).not.toContain('歪率')
   })
 
-  it('本池无五星时平均出货显示「—」,无歪率', () => {
+  it('本池无五星时平均出货显示「—」,无平均出UP与歪率', () => {
     const wrapper = mountBar(fillers(5, 3), 'standard', 3)
 
     expect(wrapper.find('.tabs-status').text()).toContain('平均出货 —')
+    expect(wrapper.find('.tabs-status').text()).not.toContain('平均出UP')
     expect(wrapper.find('.tabs-status').text()).not.toContain('歪率')
   })
 

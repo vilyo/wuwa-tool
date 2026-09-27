@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { GachaRecord } from './records'
-import { guaranteeStatus, overallStats, poolStats } from './stats'
+import { guaranteeStatus, overallStats, poolStats, upPullGroups } from './stats'
 
 let seq = 0
 
@@ -162,6 +162,102 @@ describe('歪判定与歪率:仅角色系限定池(1/8/10/12)计算', () => {
   it('计入分母的五星为零时歪率为 null(避免 0/0)', () => {
     const records = descOrder([record({ name: '', resourceId: '', qualityLevel: 5, resourceType: '角色' })])
     expect(poolStats(records, 1).offRate).toBeNull()
+  })
+})
+
+describe('出 UP 平均(#18):歪 + 必中 UP 合并计一次,直接 UP 自成一组', () => {
+  it('歪后必中 UP 合并一组,直接 UP 单独一组:35 歪 + 58 保底 = 93,62 直出 = 62', () => {
+    const records = descOrder([
+      ...fillers(34),
+      record({ name: '维里奈', qualityLevel: 5, resourceType: '角色' }), // 歪,35 抽
+      ...fillers(57),
+      record({ name: '忌炎', qualityLevel: 5, resourceType: '角色' }), // 必中 UP,58 抽 → 组成本 93
+      ...fillers(61),
+      record({ name: '今汐', qualityLevel: 5, resourceType: '角色' }), // 小保底没歪,62 抽 → 单独一组
+    ])
+    const stats = poolStats(records, 1)
+
+    expect(stats.avgPulls).toBeCloseTo(155 / 3, 10) // 现有口径:三个五星各算一次出货
+    expect(upPullGroups(stats.fives).map((g) => g.pulls)).toEqual([93, 62])
+    expect(stats.avgUpPulls).toBeCloseTo(155 / 2, 10) // (93 + 62) / 2 = 77.5
+  })
+
+  it('歪在最后未闭合:该组不计入(UP 还没出,由保底进度/大小保底状态表达)', () => {
+    const records = descOrder([
+      ...fillers(39),
+      record({ name: '维里奈', qualityLevel: 5, resourceType: '角色' }), // 歪,40 抽
+      ...fillers(9),
+      record({ name: '忌炎', qualityLevel: 5, resourceType: '角色' }), // 必中 UP,10 抽 → 50
+      ...fillers(29),
+      record({ name: '鉴心', qualityLevel: 5, resourceType: '角色' }), // 歪,30 抽,UP 未出 → 丢弃
+    ])
+    const stats = poolStats(records, 1)
+
+    expect(stats.avgUpPulls).toBeCloseTo(50, 10)
+  })
+
+  it('未知五星断链:歪的开组丢弃,后续 UP 自成一组(与歪率「未知不计入」同口径)', () => {
+    const records = descOrder([
+      ...fillers(34),
+      record({ name: '维里奈', qualityLevel: 5, resourceType: '角色' }), // 歪,35 抽
+      record({ name: '', resourceId: '', qualityLevel: 5, resourceType: '角色' }), // 未知,10 抽
+      ...fillers(9),
+      record({ name: '忌炎', qualityLevel: 5, resourceType: '角色' }), // UP,10 抽
+    ])
+    const stats = poolStats(records, 1)
+
+    expect(stats.fives.map((f) => f.off)).toEqual([true, 'unknown', false])
+    expect(stats.avgUpPulls).toBeCloseTo(10, 10)
+  })
+
+  it('连续歪(理论上不可能)取后一个开组:防御行为用测试钉住', () => {
+    const records = descOrder([
+      ...fillers(34),
+      record({ name: '维里奈', qualityLevel: 5, resourceType: '角色' }), // 歪,35 抽
+      ...fillers(9),
+      record({ name: '鉴心', qualityLevel: 5, resourceType: '角色' }), // 连续歪(异常),10 抽 → 覆盖前者
+      ...fillers(9),
+      record({ name: '忌炎', qualityLevel: 5, resourceType: '角色' }), // 必中 UP,10 抽 → 组成本 20
+    ])
+    const stats = poolStats(records, 1)
+
+    expect(stats.avgUpPulls).toBeCloseTo(20, 10)
+  })
+
+  it('不完整首星沿用现有口径计入:歪(按 1 计)+ 必中 UP 合并', () => {
+    const records = descOrder([
+      record({ name: '维里奈', qualityLevel: 5, resourceType: '角色' }), // 数据集首条即五星,按 1 计
+      ...fillers(9),
+      record({ name: '忌炎', qualityLevel: 5, resourceType: '角色' }), // 必中 UP,10 抽 → 组成本 11
+    ])
+    const stats = poolStats(records, 1)
+
+    expect(stats.fives[0]!.incomplete).toBe(true)
+    expect(stats.avgUpPulls).toBeCloseTo(11, 10)
+  })
+
+  it('仅角色系限定池计算:武器系必中 UP、常驻/新手/未知池、无五星均为 null', () => {
+    const weaponFive = record({ cardPoolType: 2, name: '千古洑流', qualityLevel: 5, resourceType: '武器' })
+    const charFive = { name: '鉴心', qualityLevel: 5, resourceType: '角色' }
+    expect(poolStats(descOrder([weaponFive]), 2).avgUpPulls).toBeNull()
+    expect(poolStats([record({ cardPoolType: 3, ...charFive })], 3).avgUpPulls).toBeNull()
+    expect(poolStats([record({ cardPoolType: 5, ...charFive })], 5).avgUpPulls).toBeNull()
+    expect(poolStats([record({ cardPoolType: 99, ...charFive })], 99).avgUpPulls).toBeNull()
+    expect(poolStats(fillers(5), 1).avgUpPulls).toBeNull()
+  })
+
+  it('总评跨池合并分组:歪在池 1、必中 UP 在池 8,合并成本 50;单池视角各自拆开', () => {
+    const records = [
+      ...fillers(39, 1),
+      record({ cardPoolType: 1, name: '维里奈', qualityLevel: 5, resourceType: '角色' }), // 池 1 歪,40 抽
+      ...fillers(9, 8),
+      record({ cardPoolType: 8, name: '忌炎', qualityLevel: 5, resourceType: '角色' }), // 池 8 必中 UP,10 抽
+    ]
+    const overall = overallStats(records)
+
+    expect(overall.avgUpPulls).toBeCloseTo(50, 10) // 歪后必中跨池继承:40 + 10 = 50
+    expect(poolStats(records, 1).avgUpPulls).toBeNull() // 池 1:歪未闭合
+    expect(poolStats(records, 8).avgUpPulls).toBeCloseTo(10, 10) // 池 8:必中 UP 自成一组
   })
 })
 

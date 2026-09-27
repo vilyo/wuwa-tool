@@ -7,7 +7,8 @@ import { poolStats } from '@/domain/stats'
 
 /**
  * 池页签栏(定稿原型 .tabsrow):四固定类别页签 + 类别内二级池切换 + 未知池动态兜底页签,
- * 右侧汇总指标行(总唤取/五星/平均出货/歪率)随当前池联动;歪率仅角色系限定池有值(stats 口径)。
+ * 右侧汇总指标行(总唤取/五星/平均出货/平均出UP/歪率)随当前池联动;
+ * 歪率与平均出UP 仅角色系限定池有值(stats 口径,#18)。
  * 选中状态由 App 持有(评语行/名册/详情条/汇总行共用一个联动源),本组件只回传选择事件。
  */
 const props = defineProps<{
@@ -75,6 +76,7 @@ const stats = computed(() => poolStats(props.records, props.poolCode))
       总唤取 <b class="num">{{ stats.totalPulls.toLocaleString() }}</b>
       · 五星 <b class="num">{{ stats.fives.length }}</b>
       · 平均出货 <b class="num">{{ stats.avgPulls === null ? '—' : stats.avgPulls.toFixed(1) }}</b>
+      <template v-if="stats.avgUpPulls !== null"> · 平均出UP <b class="num">{{ stats.avgUpPulls.toFixed(1) }}</b> 抽</template>
       <template v-if="stats.offRate !== null"> · 歪率 <b class="num">{{ Math.round(stats.offRate * 100) }}%</b></template>
     </p>
   </div>
