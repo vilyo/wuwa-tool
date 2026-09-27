@@ -1,0 +1,3 @@
+[2026.07.30-11.58.02:415][  1]LogD3D11RHI: InitDevice: adapter found
+[2026.07.30-12.00.05:123][ 87]LogPlatformWrapper: OpenWebView ... sdkJson: {"code":0,"msg":"success","url":"https://aki-gm-resources.aki-game.com/aki/gacha/index.html#/record?svr_id=76402e5b&player_id=106485288&lang=zh-Hans&gacha_id=100074&gacha_type=1&svr_area=cn&record_id=acdf99a1&resources_id=c9fbcd24&platform=PC"}
+[2026.07.30-12.00.09:001][ 92]LogTemp: Display: 页面已打开
