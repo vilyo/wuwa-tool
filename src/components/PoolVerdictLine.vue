@@ -141,7 +141,8 @@ function maxLabel(index: number): string {
   background: var(--panel);
   border: 1px solid var(--hairline);
   box-shadow: var(--shadow-pop);
-  padding: 10px 14px;
+  /* 左 6 + 行边框 2 + 行内 6 = 14px,与旧版左缘一致 */
+  padding: 10px 14px 10px 6px;
   display: grid;
   gap: 6px;
   white-space: nowrap;
@@ -149,14 +150,17 @@ function maxLabel(index: number): string {
   color: var(--text-2);
 }
 
+/* 所有行统一留 2px 边框位,字母列左缘各行严格对齐;当前档仅换边框色 */
 .tl-row {
   display: grid;
   grid-template-columns: 28px 44px 1fr;
+  border-left: 2px solid transparent;
+  padding-left: 6px;
 }
 
 /* 当前档:左侧强调色竖线 + 强调色加粗 */
 .tl-row.cur {
-  box-shadow: inset 2px 0 0 var(--accent);
+  border-left-color: var(--accent);
   color: var(--accent-ink);
   font-weight: 700;
 }
