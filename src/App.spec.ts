@@ -112,8 +112,8 @@ describe('本池评语行(#07)', () => {
     expect(wrapper.find('.empty-title').exists()).toBe(true)
   })
 
-  it('有档案时评语行上屏:默认角色精准调谐池,评级 + 评语 + 平均出货 + 歪率', () => {
-    // 池 1:40 抽歪(维里奈在常驻名单)+ 40 抽 UP(忌炎)→ 平均 40 → A,歪率 50%
+  it('有档案时评语行上屏:默认角色精准调谐池,评级 + 评语 + 平均出UP + 歪率', () => {
+    // 池 1:40 抽歪(维里奈在常驻名单)+ 40 抽 UP(忌炎)→ 平均出货 40 → A;出UP 40+40=80,歪率 50%
     const asc: GachaRecord[] = []
     for (let i = 0; i < 2; i += 1) {
       for (let j = 0; j < 39; j += 1) asc.push(record())
@@ -125,7 +125,7 @@ describe('本池评语行(#07)', () => {
     expect(line.exists()).toBe(true)
     expect(line.find('.rank-mini').text()).toBe('A')
     expect(line.find('.vtext').text()).toBe('欧洲常驻居民')
-    expect(line.find('.vsub').text()).toBe('平均出货 40.0 抽 · 歪率 50%')
+    expect(line.find('.vsub').text()).toBe('平均出UP 80.0 抽 · 歪率 50%')
   })
 })
 

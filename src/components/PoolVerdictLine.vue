@@ -5,9 +5,10 @@ import { poolStats } from '@/domain/stats'
 import { poolVerdict, TIER_LADDER } from '@/domain/verdict'
 
 /**
- * 本池评语行(定稿原型 .verdictline):评级菱章字母 + 评语 + 平均出货 + 歪率(+ 修正项徽章)。
- * 当前池由 #09 页签状态给定(App 传入),统计与评语全部来自 domain 纯函数。
- * 悬停/聚焦「菱章 + 评语」展开档位表弹层,当前档高亮(#17)。
+ * 本池评语行(定稿原型 .verdictline):评级菱章字母 + 评语 + 平均出UP + 歪率(+ 修正项徽章)。
+ * 子行数字(#18 二次要求):角色系限定池显示「平均出UP」,无出 UP 口径的池回落「平均出货」;
+ * 评级与档位弹层仍按五星平均出货定档(定稿口径)。当前池由 #09 页签状态给定(App 传入),
+ * 统计与评语全部来自 domain 纯函数。悬停/聚焦「菱章 + 评语」展开档位表弹层,当前档高亮(#17)。
  */
 const props = defineProps<{
   /** 当前档案的全部流水(时间倒序,组件内按口径自行排序) */
@@ -83,7 +84,11 @@ function maxLabel(index: number): string {
       class="vsub"
     >
       <template v-if="verdict.note">{{ verdict.note }}</template>
-      <template v-else>平均出货 <span class="num">{{ verdict.avgPulls!.toFixed(1) }}</span> 抽<template v-if="verdict.offRate !== null"> · 歪率 <span class="num">{{ Math.round(verdict.offRate * 100) }}%</span></template></template>
+      <template v-else>
+        <template v-if="verdict.avgUpPulls !== null">平均出UP <span class="num">{{ verdict.avgUpPulls.toFixed(1) }}</span> 抽</template>
+        <template v-else>平均出货 <span class="num">{{ verdict.avgPulls!.toFixed(1) }}</span> 抽</template>
+        <template v-if="verdict.offRate !== null"> · 歪率 <span class="num">{{ Math.round(verdict.offRate * 100) }}%</span></template>
+      </template>
     </span>
     <span
       v-for="modifier in verdict.modifiers"

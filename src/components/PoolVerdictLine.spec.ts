@@ -42,9 +42,9 @@ function history(segments: Array<[pullsBefore: number, five: string]>): GachaRec
   return [...asc].reverse() // 库内流水为时间倒序
 }
 
-describe('本池评语行:评级菱章 + 评语 + 平均出货 + 歪率', () => {
-  it('随传入池 code(角色精准调谐 1)数据渲染评级、评语、平均出货与歪率', () => {
-    // 40 抽歪(维里奈在常驻名单) + 40 抽 UP(忌炎) → 平均 40 → A,歪率 50%
+describe('本池评语行:评级菱章 + 评语 + 平均出UP + 歪率', () => {
+  it('随传入池 code(角色精准调谐 1)数据渲染评级、评语、平均出UP与歪率', () => {
+    // 40 抽歪(维里奈在常驻名单) + 40 抽 UP(忌炎) → 平均出货 40 → A 档;出UP 40+40=80,歪率 50%
     const wrapper = mount(PoolVerdictLine, {
       props: { records: history([[39, '维里奈'], [39, '忌炎']]), poolCode: 1 },
     })
@@ -54,7 +54,7 @@ describe('本池评语行:评级菱章 + 评语 + 平均出货 + 歪率', () => 
     expect(rank.attributes('aria-label')).toBe('欧非评级 A')
     expect(rank.classes()).not.toContain('none')
     expect(wrapper.find('.vtext').text()).toBe('欧洲常驻居民')
-    expect(wrapper.find('.vsub').text()).toBe('平均出货 40.0 抽 · 歪率 50%')
+    expect(wrapper.find('.vsub').text()).toBe('平均出UP 80.0 抽 · 歪率 50%')
   })
 
   it('歪率 ≥80% 时追加修正项徽章「命运的反面宠儿」', () => {
@@ -84,7 +84,7 @@ describe('本池评语行:评级菱章 + 评语 + 平均出货 + 歪率', () => 
 })
 
 describe('无评级场合', () => {
-  it('样本不足:评级「—」隐藏菱章,评语「样本不足，多抽点再来」', () => {
+  it('样本不足:评级「—」隐藏菱章,评语「样本不足，多抽点再来」;直接出的 UP 按出UP口径显示', () => {
     const wrapper = mount(PoolVerdictLine, {
       props: { records: history([[39, '忌炎']]), poolCode: 1 },
     })
@@ -93,7 +93,15 @@ describe('无评级场合', () => {
     expect(rank.classes()).toContain('none')
     expect(rank.attributes('aria-label')).toBe('欧非评级 —')
     expect(wrapper.find('.vtext').text()).toBe('样本不足，多抽点再来')
-    expect(wrapper.find('.vsub').text()).toBe('平均出货 40.0 抽 · 歪率 0%')
+    expect(wrapper.find('.vsub').text()).toBe('平均出UP 40.0 抽 · 歪率 0%')
+  })
+
+  it('仅有未闭合的歪(UP 未出):出UP不可计,回落显示平均出货(#18 口径)', () => {
+    const wrapper = mount(PoolVerdictLine, {
+      props: { records: history([[39, '维里奈']]), poolCode: 1 },
+    })
+
+    expect(wrapper.find('.vsub').text()).toBe('平均出货 40.0 抽 · 歪率 100%')
   })
 
   it('新手·感恩池:评级「—」、评语「启程之人」、说明文字替代平均出货', () => {
@@ -131,7 +139,8 @@ describe('随当前池数据刷新', () => {
 
     expect(wrapper.find('.rank-mini').text()).toBe('D')
     expect(wrapper.find('.vtext').text()).toBe('保底战神')
-    expect(wrapper.find('.vsub').text()).toBe('平均出货 142.0 抽') // 常驻池不显示歪率
+    // 常驻池无出UP口径:回落平均出货,不显示歪率
+    expect(wrapper.find('.vsub').text()).toBe('平均出货 142.0 抽')
   })
 })
 

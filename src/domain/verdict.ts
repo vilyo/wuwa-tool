@@ -5,6 +5,8 @@
  *   S ≤35 天选之人 / A ≤50 欧洲常驻居民 / B+ ≤62 手气不错 / B ≤70 中规中矩 / C ≤78 玄不救非 / D >78 保底战神。
  * - 档位表单一来源 TIER_LADDER(#17):tierOf 与评语行 hover 档位弹层共用。
  * - 修正项:歪率 ≥80% 追加「命运的反面宠儿」;出过 ≤10 抽五星追加「十里坡剑圣」式彩蛋(原型文案)。
+ * - 评语行子行数字(#18 二次要求):角色系限定池显示「平均出UP」(歪+必中UP 合并口径),
+ *   无出 UP 口径的池(武器/常驻等)回落显示「平均出货」;评级与档位仍按五星平均出货定档(定稿不动)。
  * - 程度阈值:超欧 ≤20 抽(绿)、欧 21–40 抽(浅绿)、正常 41–69 抽(中性)、超非 ≥70 抽(红),
  *   供名册数字/微条着色(#08)。
  * - 期望参考线:角色系 62 抽(社区口径,仅供参考);武器系 V1 不显示(#08/#09/#10 消费)。
@@ -86,6 +88,8 @@ export interface PoolVerdict {
   text: string
   /** 五星平均出货(含出货那抽);不展示时为 null */
   avgPulls: number | null
+  /** 出 UP 平均抽数(#18,歪 + 必中 UP 合并计一次);仅角色系限定池有值,组件据此切换子行文案 */
+  avgUpPulls: number | null
   /** 歪率(0–1);仅角色系限定池有值 */
   offRate: number | null
   /** 修正项与彩蛋徽章 */
@@ -109,7 +113,7 @@ function luckiestFive(fives: readonly FiveStarPull[]): FiveStarPull | null {
 
 /** 由统计结果组装评语(档位定稿见 spec 档位表;修正项见 PRD §5) */
 export function poolVerdict(stats: PoolStats): PoolVerdict {
-  const { category, fives, avgPulls, offRate } = stats
+  const { category, fives, avgPulls, avgUpPulls, offRate } = stats
 
   // 新手·感恩池规则特殊,不计入欧非总评(原型定稿)
   if (category === 'noviceGratitude') {
@@ -117,6 +121,7 @@ export function poolVerdict(stats: PoolStats): PoolVerdict {
       rank: NO_RANK,
       text: '启程之人',
       avgPulls: null,
+      avgUpPulls: null,
       offRate: null,
       modifiers: [],
       note: '新手池规则特殊，不计入欧非总评',
@@ -124,7 +129,15 @@ export function poolVerdict(stats: PoolStats): PoolVerdict {
   }
   // 未知池:规则未知,保守不给任何欧非评价(#09 兜底页签做浅统计)
   if (category === 'unknown') {
-    return { rank: NO_RANK, text: '未知调谐池', avgPulls: null, offRate: null, modifiers: [], note: null }
+    return {
+      rank: NO_RANK,
+      text: '未知调谐池',
+      avgPulls: null,
+      avgUpPulls: null,
+      offRate: null,
+      modifiers: [],
+      note: null,
+    }
   }
 
   // 样本不足:角色系限定池五星 <2 个(其余池一个五星都没有时同样不给评级)
@@ -134,6 +147,7 @@ export function poolVerdict(stats: PoolStats): PoolVerdict {
       rank: NO_RANK,
       text: '样本不足，多抽点再来',
       avgPulls,
+      avgUpPulls,
       offRate,
       modifiers: [],
       note: null,
@@ -149,5 +163,5 @@ export function poolVerdict(stats: PoolStats): PoolVerdict {
   if (luckiest) {
     modifiers.push({ text: `出手如电 · ${luckiest.pulls} 抽${luckiest.record.name}`, tone: 'up' })
   }
-  return { rank: tier.rank, text: tier.text, avgPulls, offRate, modifiers, note: null }
+  return { rank: tier.rank, text: tier.text, avgPulls, avgUpPulls, offRate, modifiers, note: null }
 }
