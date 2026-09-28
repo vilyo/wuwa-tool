@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<defs>
+  <radialGradient id="i-lacq" cx="0.5" cy="0.42" r="0.6">
+    <stop offset="0" stop-color="#241F14"/><stop offset="0.7" stop-color="#1A160E"/><stop offset="1" stop-color="#12100A"/>
+  </radialGradient>
+  <radialGradient id="i-disc" cx="0.5" cy="0.45" r="0.65">
+    <stop offset="0" stop-color="#2A2417"/><stop offset="1" stop-color="#1C180F"/>
+  </radialGradient>
+  <radialGradient id="i-sg" cx="0.5" cy="0.48" r="0.5">
+    <stop offset="0" stop-color="#EFE0B0" stop-opacity="0.20"/><stop offset="1" stop-color="#EFE0B0" stop-opacity="0"/>
+  </radialGradient>
+  <linearGradient id="i-arc" x1="190" y1="190" x2="834" y2="834" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#F2E3B4"/><stop offset="1" stop-color="#9A7F45"/>
+  </linearGradient>
+  <linearGradient id="i-gold" x1="0" y1="344" x2="0" y2="680" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#EFE0B0"/><stop offset="1" stop-color="#B49A5E"/>
+  </linearGradient>
+</defs>
+<rect width="1024" height="1024" fill="#100E0B"/>
+<rect width="1024" height="1024" fill="url(#i-bg)"/>
+<rect width="1024" height="1024" fill="url(#i-warm)"/>
+<circle cx="512" cy="512" r="400" fill="url(#i-lacq)"/>
+<circle cx="512" cy="512" r="400" fill="none" stroke="#C8B783" stroke-width="2.5" stroke-opacity="0.9"/>
+<polygon points="512.0 140.0 539.6 161.1 570.2 144.6 594.2 169.7 627.0 158.2 646.7 186.8 680.9 180.5 695.9 211.9 730.7 211.0 740.6 244.3 775.0 249.0 779.7 283.4 813.0 293.3 812.1 328.1 843.5 343.1 837.2 377.3 865.8 397.0 854.3 429.8 879.4 453.8 862.9 484.4 884.0 512.0 862.9 539.6 879.4 570.2 854.3 594.2 865.8 627.0 837.2 646.7 843.5 680.9 812.1 695.9 813.0 730.7 779.7 740.6 775.0 775.0 740.6 779.7 730.7 813.0 695.9 812.1 680.9 843.5 646.7 837.2 627.0 865.8 594.2 854.3 570.2 879.4 539.6 862.9 512.0 884.0 484.4 862.9 453.8 879.4 429.8 854.3 397.0 865.8 377.3 837.2 343.1 843.5 328.1 812.1 293.3 813.0 283.4 779.7 249.0 775.0 244.3 740.6 211.0 730.7 211.9 695.9 180.5 680.9 186.8 646.7 158.2 627.0 169.7 594.2 144.6 570.2 161.1 539.6 140.0 512.0 161.1 484.4 144.6 453.8 169.7 429.8 158.2 397.0 186.8 377.3 180.5 343.1 211.9 328.1 211.0 293.3 244.3 283.4 249.0 249.0 283.4 244.3 293.3 211.0 328.1 211.9 343.1 180.5 377.3 186.8 397.0 158.2 429.8 169.7 453.8 144.6 484.4 161.1 512.0 140.0" fill="none" stroke="#C8B783" stroke-width="2.2" stroke-opacity="0.55" stroke-linejoin="round"/>
+<line x1="512.0" y1="168.0" x2="512.0" y2="132.0" stroke="#EFE0B0" stroke-width="3.5" stroke-opacity="0.95"/>
+<line x1="755.2" y1="268.8" x2="780.7" y2="243.3" stroke="#EFE0B0" stroke-width="3.5" stroke-opacity="0.95"/>
+<line x1="856.0" y1="512.0" x2="892.0" y2="512.0" stroke="#EFE0B0" stroke-width="3.5" stroke-opacity="0.95"/>
+<line x1="755.2" y1="755.2" x2="780.7" y2="780.7" stroke="#EFE0B0" stroke-width="3.5" stroke-opacity="0.95"/>
+<line x1="512.0" y1="856.0" x2="512.0" y2="892.0" stroke="#EFE0B0" stroke-width="3.5" stroke-opacity="0.95"/>
+<line x1="268.8" y1="755.2" x2="243.3" y2="780.7" stroke="#EFE0B0" stroke-width="3.5" stroke-opacity="0.95"/>
+<line x1="168.0" y1="512.0" x2="132.0" y2="512.0" stroke="#EFE0B0" stroke-width="3.5" stroke-opacity="0.95"/>
+<line x1="268.8" y1="268.8" x2="243.3" y2="243.3" stroke="#EFE0B0" stroke-width="3.5" stroke-opacity="0.95"/>
+<path d="M 512 190 A 322 322 0 1 1 237.4 343.8" fill="none" stroke="url(#i-arc)" stroke-width="12"/>
+<circle cx="237.4" cy="343.8" r="20" fill="#EFE0B0" opacity="0.28"/>
+<circle cx="237.4" cy="343.8" r="10" fill="#FFF6DC"/>
+<circle cx="512" cy="512" r="300" fill="none" stroke="#C8B783" stroke-width="1.5" stroke-opacity="0.5"/>
+<polygon points="512.0,233.0 519.0,240.0 512.0,247.0 505.0,240.0" fill="#C8B783" fill-opacity="0.5"/>
+<polygon points="648.0,269.4 655.0,276.4 648.0,283.4 641.0,276.4" fill="#C8B783" fill-opacity="0.5"/>
+<polygon points="747.6,369.0 754.6,376.0 747.6,383.0 740.6,376.0" fill="#C8B783" fill-opacity="0.5"/>
+<polygon points="784.0,505.0 791.0,512.0 784.0,519.0 777.0,512.0" fill="#C8B783" fill-opacity="0.5"/>
+<polygon points="747.6,641.0 754.6,648.0 747.6,655.0 740.6,648.0" fill="#C8B783" fill-opacity="0.5"/>
+<polygon points="648.0,740.6 655.0,747.6 648.0,754.6 641.0,747.6" fill="#C8B783" fill-opacity="0.5"/>
+<polygon points="512.0,777.0 519.0,784.0 512.0,791.0 505.0,784.0" fill="#C8B783" fill-opacity="0.5"/>
+<polygon points="376.0,740.6 383.0,747.6 376.0,754.6 369.0,747.6" fill="#C8B783" fill-opacity="0.5"/>
+<polygon points="276.4,641.0 283.4,648.0 276.4,655.0 269.4,648.0" fill="#C8B783" fill-opacity="0.5"/>
+<polygon points="240.0,505.0 247.0,512.0 240.0,519.0 233.0,512.0" fill="#C8B783" fill-opacity="0.5"/>
+<polygon points="276.4,369.0 283.4,376.0 276.4,383.0 269.4,376.0" fill="#C8B783" fill-opacity="0.5"/>
+<polygon points="376.0,269.4 383.0,276.4 376.0,283.4 369.0,276.4" fill="#C8B783" fill-opacity="0.5"/>
+<circle cx="512" cy="512" r="252" fill="url(#i-disc)"/>
+<circle cx="512" cy="512" r="252" fill="none" stroke="#C8B783" stroke-width="1" stroke-opacity="0.35"/>
+<circle cx="512" cy="512" r="260" fill="url(#i-sg)"/>
+<polygon points="512.0,344.0 553.1,455.4 671.8,460.1 578.6,533.6 610.7,647.9 512.0,582.0 413.3,647.9 445.4,533.6 352.2,460.1 470.9,455.4" fill="url(#i-gold)"/>
+<polygon points="512,512 512.0,344.0 553.1,455.4" fill="#000" opacity="0.10"/>
+<polygon points="512,512 553.1,455.4 671.8,460.1" fill="#FFF6DC" opacity="0.05"/>
+<polygon points="512,512 671.8,460.1 578.6,533.6" fill="#000" opacity="0.10"/>
+<polygon points="512,512 578.6,533.6 610.7,647.9" fill="#FFF6DC" opacity="0.05"/>
+<polygon points="512,512 610.7,647.9 512.0,582.0" fill="#000" opacity="0.10"/>
+<polygon points="512,512 512.0,582.0 413.3,647.9" fill="#FFF6DC" opacity="0.05"/>
+<polygon points="512,512 413.3,647.9 445.4,533.6" fill="#000" opacity="0.10"/>
+<polygon points="512,512 445.4,533.6 352.2,460.1" fill="#FFF6DC" opacity="0.05"/>
+<polygon points="512,512 352.2,460.1 470.9,455.4" fill="#000" opacity="0.10"/>
+<polygon points="512,512 470.9,455.4 512.0,344.0" fill="#FFF6DC" opacity="0.05"/>
+<polygon points="512.0,96.0 528.0,112.0 512.0,128.0 496.0,112.0" fill="#EFE0B0" fill-opacity="1"/>
+<polygon points="912.0,500.0 924.0,512.0 912.0,524.0 900.0,512.0" fill="#EFE0B0" fill-opacity="0.6"/>
+<polygon points="512.0,900.0 524.0,912.0 512.0,924.0 500.0,912.0" fill="#EFE0B0" fill-opacity="0.6"/>
+<polygon points="112.0,500.0 124.0,512.0 112.0,524.0 100.0,512.0" fill="#EFE0B0" fill-opacity="0.6"/>
+</svg>
