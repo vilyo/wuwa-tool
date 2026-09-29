@@ -55,18 +55,18 @@ function pool1History(segments: Array<[pulls: number, five: string | '歪' | 'UP
   return [...asc].reverse()
 }
 
-describe('评语档位与评级字母(原型 tierOf 定稿):档位边界逐一测试', () => {
-  it('S ≤35 天选之人 / A ≤50 欧洲常驻居民 / B+ ≤62 手气不错 / B ≤70 中规中矩 / C ≤78 玄不救非 / D >78 保底战神', () => {
+describe('评语档位与评级字母(五档 SABCD):档位边界逐一测试', () => {
+  it('S ≤35 天选之人 / A ≤50 欧洲常驻民 / B ≤70 普普通通 / C ≤78 保底战神 / D >78 非洲大酋长', () => {
     expect(tierOf(35)).toEqual({ rank: 'S', text: '天选之人' })
-    expect(tierOf(36)).toEqual({ rank: 'A', text: '欧洲常驻居民' })
-    expect(tierOf(50)).toEqual({ rank: 'A', text: '欧洲常驻居民' })
-    expect(tierOf(51)).toEqual({ rank: 'B+', text: '手气不错' })
-    expect(tierOf(62)).toEqual({ rank: 'B+', text: '手气不错' })
-    expect(tierOf(63)).toEqual({ rank: 'B', text: '中规中矩' })
-    expect(tierOf(70)).toEqual({ rank: 'B', text: '中规中矩' })
-    expect(tierOf(71)).toEqual({ rank: 'C', text: '玄不救非' })
-    expect(tierOf(78)).toEqual({ rank: 'C', text: '玄不救非' })
-    expect(tierOf(79)).toEqual({ rank: 'D', text: '保底战神' })
+    expect(tierOf(36)).toEqual({ rank: 'A', text: '欧洲常驻民' })
+    expect(tierOf(50)).toEqual({ rank: 'A', text: '欧洲常驻民' })
+    expect(tierOf(51)).toEqual({ rank: 'B', text: '普普通通' })
+    expect(tierOf(62)).toEqual({ rank: 'B', text: '普普通通' })
+    expect(tierOf(63)).toEqual({ rank: 'B', text: '普普通通' })
+    expect(tierOf(70)).toEqual({ rank: 'B', text: '普普通通' })
+    expect(tierOf(71)).toEqual({ rank: 'C', text: '保底战神' })
+    expect(tierOf(78)).toEqual({ rank: 'C', text: '保底战神' })
+    expect(tierOf(79)).toEqual({ rank: 'D', text: '非洲大酋长' })
   })
 
   it('极值:0 抽(理论下限)为 S,超大平均为 D', () => {
@@ -76,14 +76,13 @@ describe('评语档位与评级字母(原型 tierOf 定稿):档位边界逐一�
 })
 
 describe('档位表单一来源 TIER_LADDER', () => {
-  it('六行档位,rank/max/text 与定稿档位表逐字一致', () => {
+  it('五行档位,rank/max/text 与定稿档位表逐字一致', () => {
     expect([...TIER_LADDER]).toEqual([
       { rank: 'S', max: 35, text: '天选之人' },
-      { rank: 'A', max: 50, text: '欧洲常驻居民' },
-      { rank: 'B+', max: 62, text: '手气不错' },
-      { rank: 'B', max: 70, text: '中规中矩' },
-      { rank: 'C', max: 78, text: '玄不救非' },
-      { rank: 'D', max: null, text: '保底战神' },
+      { rank: 'A', max: 50, text: '欧洲常驻民' },
+      { rank: 'B', max: 70, text: '普普通通' },
+      { rank: 'C', max: 78, text: '保底战神' },
+      { rank: 'D', max: null, text: '非洲大酋长' },
     ])
   })
 
@@ -131,12 +130,12 @@ describe('修正项阈值常量', () => {
 
 describe('本池评语:角色系限定池', () => {
   it('按五星平均出货定档,透传平均出货与歪率', () => {
-    // 30 抽 + 50 抽 → 平均 40 → A 欧洲常驻居民;一歪一 UP → 歪率 50%
+    // 30 抽 + 50 抽 → 平均 40 → A 欧洲常驻民;一歪一 UP → 歪率 50%
     const records = pool1History([[30, '歪'], [50, 'UP']])
     const verdict = poolVerdict(poolStats(records, 1))
 
     expect(verdict.rank).toBe('A')
-    expect(verdict.text).toBe('欧洲常驻居民')
+    expect(verdict.text).toBe('欧洲常驻民')
     expect(verdict.avgPulls).toBeCloseTo(40, 10)
     expect(verdict.offRate).toBeCloseTo(0.5, 10)
     expect(verdict.modifiers).toEqual([])
@@ -208,7 +207,7 @@ describe('本池评语:武器系限定池 / 常驻池', () => {
     const verdict = poolVerdict(poolStats(records, 2))
 
     expect(verdict.rank).toBe('A')
-    expect(verdict.text).toBe('欧洲常驻居民')
+    expect(verdict.text).toBe('欧洲常驻民')
     expect(verdict.avgPulls).toBeCloseTo(42, 10)
     expect(verdict.offRate).toBeNull()
   })
@@ -220,7 +219,7 @@ describe('本池评语:武器系限定池 / 常驻池', () => {
     ]
     const verdict = poolVerdict(poolStats(records, 3))
     expect(verdict.rank).toBe('D')
-    expect(verdict.text).toBe('保底战神')
+    expect(verdict.text).toBe('非洲大酋长')
     expect(verdict.offRate).toBeNull()
   })
 
@@ -278,7 +277,7 @@ describe('总评:数据集 = 全部角色系限定池(1/8/10/12)', () => {
     const verdict = poolVerdict(overallStats(records))
 
     expect(verdict.rank).toBe('A') // 平均 (30 + 50) / 2 = 40 → A
-    expect(verdict.text).toBe('欧洲常驻居民')
+    expect(verdict.text).toBe('欧洲常驻民')
     expect(verdict.avgPulls).toBeCloseTo(40, 10)
     expect(verdict.offRate).toBeCloseTo(0.5, 10)
   })

@@ -53,7 +53,7 @@ describe('本池评语行:评级菱章 + 评语 + 平均出UP + 歪率', () => {
     expect(rank.text()).toBe('A')
     expect(rank.attributes('aria-label')).toBe('欧非评级 A')
     expect(rank.classes()).not.toContain('none')
-    expect(wrapper.find('.vtext').text()).toBe('欧洲常驻居民')
+    expect(wrapper.find('.vtext').text()).toBe('欧洲常驻民')
     expect(wrapper.find('.vsub').text()).toBe('平均出UP 80.0 抽 · 歪率 50%')
   })
 
@@ -65,7 +65,7 @@ describe('本池评语行:评级菱章 + 评语 + 平均出UP + 歪率', () => {
       },
     })
 
-    expect(wrapper.find('.vtext').text()).toBe('欧洲常驻居民')
+    expect(wrapper.find('.vtext').text()).toBe('欧洲常驻民')
     const badges = wrapper.findAll('.badge')
     expect(badges).toHaveLength(1)
     expect(badges[0]!.text()).toBe('命运的反面宠儿')
@@ -128,7 +128,7 @@ describe('随当前池数据刷新', () => {
     })
     expect(wrapper.find('.rank-mini').text()).toBe('A')
 
-    // 档案切换为另一个池(常驻):常驻池安可 142 抽出货 → D 保底战神
+    // 档案切换为另一个池(常驻):常驻池安可 142 抽出货 → D 非洲大酋长
     await wrapper.setProps({
       records: [
         ...fillers(141, 3),
@@ -138,14 +138,14 @@ describe('随当前池数据刷新', () => {
     })
 
     expect(wrapper.find('.rank-mini').text()).toBe('D')
-    expect(wrapper.find('.vtext').text()).toBe('保底战神')
+    expect(wrapper.find('.vtext').text()).toBe('非洲大酋长')
     // 常驻池无出UP口径:回落平均出货,不显示歪率
     expect(wrapper.find('.vsub').text()).toBe('平均出货 142.0 抽')
   })
 })
 
 describe('档位表 hover 弹层', () => {
-  it('有评级:hover 触发器弹出六行档位表,行序与阈值正确,当前档唯一高亮', async () => {
+  it('有评级:hover 触发器弹出五行档位表,行序与阈值正确,当前档唯一高亮', async () => {
     // 40 抽×2 → 平均 40 → A 档
     const wrapper = mount(PoolVerdictLine, {
       props: { records: history([[39, '维里奈'], [39, '忌炎']]), poolCode: 1 },
@@ -157,8 +157,8 @@ describe('档位表 hover 弹层', () => {
     const ladder = wrapper.find('.tier-ladder')
     expect(ladder.exists()).toBe(true)
     const rows = ladder.findAll('.tl-row')
-    expect(rows).toHaveLength(6)
-    expect(rows.map((row) => row.find('.tl-rank').text())).toEqual(['S', 'A', 'B+', 'B', 'C', 'D'])
+    expect(rows).toHaveLength(5)
+    expect(rows.map((row) => row.find('.tl-rank').text())).toEqual(['S', 'A', 'B', 'C', 'D'])
     expect(ladder.text()).toContain('≤35')
     expect(ladder.text()).toContain('>78')
     const cur = ladder.findAll('.tl-row.cur')

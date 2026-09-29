@@ -1,8 +1,8 @@
 /**
  * 欧非评语(spec「Implementation Decisions · 统计口径与评语」;档位表与修正项文案逐字定稿)。
  *
- * - 评语档位与评级字母按五星平均出货(含出货那抽)定档,原型 tierOf 定稿:
- *   S ≤35 天选之人 / A ≤50 欧洲常驻居民 / B+ ≤62 手气不错 / B ≤70 中规中矩 / C ≤78 玄不救非 / D >78 保底战神。
+ * - 评语档位与评级字母按五星平均出货(含出货那抽)定档,五档 SABCD(2026-09-29 用户改版,删原 B+ 档):
+ *   S ≤35 天选之人 / A ≤50 欧洲常驻民 / B ≤70 普普通通 / C ≤78 保底战神 / D >78 非洲大酋长。
  * - 档位表单一来源 TIER_LADDER(#17):tierOf 与评语行 hover 档位弹层共用。
  * - 修正项:歪率 ≥80% 追加「命运的反面宠儿」;出过 ≤10 抽五星追加「十里坡剑圣」式彩蛋(原型文案)。
  * - 评语行子行数字(#18 二次要求):角色系限定池显示「平均出UP」(歪+必中UP 合并口径),
@@ -53,17 +53,16 @@ export interface TierRung {
   text: string
 }
 
-/** 档位表(原型定稿,S→D):阈值文案「≤N」/末档「>N」按上一档上限显示 */
+/** 档位表(五档 SABCD,2026-09-29 用户改版,S→D):阈值文案「≤N」/末档「>N」按上一档上限显示 */
 export const TIER_LADDER: readonly TierRung[] = [
   { rank: 'S', max: 35, text: '天选之人' },
-  { rank: 'A', max: 50, text: '欧洲常驻居民' },
-  { rank: 'B+', max: 62, text: '手气不错' },
-  { rank: 'B', max: 70, text: '中规中矩' },
-  { rank: 'C', max: 78, text: '玄不救非' },
-  { rank: 'D', max: null, text: '保底战神' },
+  { rank: 'A', max: 50, text: '欧洲常驻民' },
+  { rank: 'B', max: 70, text: '普普通通' },
+  { rank: 'C', max: 78, text: '保底战神' },
+  { rank: 'D', max: null, text: '非洲大酋长' },
 ]
 
-/** 评语档位(原型 tierOf 定稿):按五星平均出货定档 */
+/** 评语档位:按五星平均出货定档 */
 export function tierOf(avgPulls: number): VerdictTier {
   const rung = TIER_LADDER.find((r) => r.max === null || avgPulls <= r.max)
   return { rank: rung!.rank, text: rung!.text }
